@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  promptgate_filter-service:
+    ports:
+      - "8001:8000"  # 독립 실행 시 포트 변경
+  promptgate_qdrant:
+    ports:
+      - "6334:6333"  # 독립 실행 시 포트 변경
+  promptgate_elasticsearch:
+    ports:
+      - "9201:9200"  # 독립 실행 시 포트 변경
+  promptgate_kibana:
+    ports:
+      - "5602:5601"  # 독립 실행 시 포트 변경

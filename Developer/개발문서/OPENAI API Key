@@ -1,0 +1,12 @@
+app/core/filter.py 생성 후 Rebuff SDK 연동 구현
+
+proxy.py 라우터에서 filter.py 호출 구조로 연결
+
+로깅 (services/logger.py) → Elasticsearch 또는 콘솔 출력 연동
+
+민감 정보 마스킹 → core/security.py 에 구현
+
+.env 기반 구성파일 (config.py) → pydantic.BaseSettings로 정리 가능
+
+
+OPEN API Key  :  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

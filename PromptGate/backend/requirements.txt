@@ -1,0 +1,18 @@
+fastapi==0.115.1
+uvicorn==0.34.0
+python-dotenv==1.1.0
+python-jose==3.5.0
+httpx==0.28.1
+pydantic==2.6.4 # FastAPI Basic Model Library
+pydantic-settings==2.2.1
+loguru==0.7.2
+
+elasticsearch==8.11.0   # for DashIQ
+
+requests==2.31.0
+
+sentence-transformers==2.5.1
+qdrant-client==1.7.3
+
+
+psycopg2-binary==2.9.9

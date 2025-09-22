@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptGate - ChatGPT 스타일 UI 데모</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .chat-container {
+            height: calc(100vh - 120px);
+        }
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #3B82F6;
+            color: white;
+        }
+        .assistant-message {
+            background-color: white;
+            color: #1F2937;
+            border: 1px solid #E5E7EB;
+        }
+        .typing-indicator {
+            display: none;
+        }
+        .typing-indicator.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex flex-col">
+        <!-- 헤더 -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">PG</span>
+                    </div>
+                    <h1 class="text-xl font-semibold text-gray-900">PromptGate</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-500">AI 프롬프트 보안 시스템</span>
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 채팅 컨테이너 -->
+        <div class="flex-1 flex flex-col chat-container">
+            <!-- 메시지 영역 -->
+            <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- 환영 메시지 -->
+                <div class="flex justify-start">
+                    <div class="flex items-start space-x-2 max-w-[70%]">
+                        <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center">
+                            <i data-lucide="bot" class="w-4 h-4"></i>
+                        </div>
+                        <div class="px-4 py-2 rounded-lg assistant-message">
+                            <p class="text-sm">안녕하세요! PromptGate AI 프롬프트 보안 시스템입니다. 무엇을 도와드릴까요?</p>
+                            <p class="text-xs opacity-70 mt-1">방금 전</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 타이핑 인디케이터 -->
+            <div id="typing-indicator" class="typing-indicator px-4 pb-2">
+                <div class="flex justify-start">
+                    <div class="flex items-start space-x-2 max-w-[70%]">
+                        <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center">
+                            <i data-lucide="bot" class="w-4 h-4"></i>
+                        </div>
+                        <div class="px-4 py-2 rounded-lg assistant-message">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex space-x-1">
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                </div>
+                                <span class="text-sm text-gray-500">응답 중...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 입력 영역 -->
+            <div class="border-t border-gray-200 p-4 bg-white">
+                <div class="flex space-x-2">
+                    <textarea
+                        id="messageInput"
+                        placeholder="메시지를 입력하세요..."
+                        class="flex-1 resize-none border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="1"
+                    ></textarea>
+                    <button
+                        id="sendButton"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Lucide 아이콘 초기화
+        lucide.createIcons();
+
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        // 메시지 전송 함수
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // 사용자 메시지 추가
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // 타이핑 인디케이터 표시
+            typingIndicator.classList.add('show');
+
+            // Filter Service API 호출 (시뮬레이션)
+            try {
+                const response = await simulateFilterService(message);
+                typingIndicator.classList.remove('show');
+                addMessage(response, 'assistant');
+            } catch (error) {
+                typingIndicator.classList.remove('show');
+                addMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'assistant');
+            }
+        }
+
+        // 메시지 추가 함수
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const messageContent = `
+                <div class="flex items-start space-x-2 max-w-[70%] ${role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center ${
+                        role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'
+                    }">
+                        <i data-lucide="${role === 'user' ? 'user' : 'bot'}" class="w-4 h-4"></i>
+                    </div>
+                    <div class="px-4 py-2 rounded-lg ${
+                        role === 'user' ? 'user-message' : 'assistant-message'
+                    }">
+                        <p class="text-sm whitespace-pre-wrap">${content}</p>
+                        <p class="text-xs opacity-70 mt-1">${new Date().toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+
+            messageDiv.innerHTML = messageContent;
+            messagesContainer.appendChild(messageDiv);
+
+            // 아이콘 다시 초기화
+            lucide.createIcons();
+
+            // 스크롤을 맨 아래로
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Filter Service 시뮬레이션
+        async function simulateFilterService(message) {
+            // 실제로는 여기서 Filter Service API를 호출합니다
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+
+            // 간단한 응답 시뮬레이션
+            const responses = [
+                `"${message}"에 대한 답변입니다. 이 메시지는 보안 정책을 통과했습니다.`,
+                `안전한 프롬프트입니다. "${message}"에 대해 도움을 드릴 수 있습니다.`,
+                `프롬프트가 정상적으로 처리되었습니다. "${message}"에 대한 응답입니다.`,
+                `보안 검사를 통과했습니다. "${message}"에 대한 답변을 제공합니다.`
+            ];
+
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        // 이벤트 리스너
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 입력창 자동 높이 조정
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    </script>
+</body>
+</html> 

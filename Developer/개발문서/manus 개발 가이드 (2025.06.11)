@@ -1,0 +1,4432 @@
+KRA-AiGov 솔루션 개발을 위한 첫 단계로, 개발 환경 설정 지원을 시작하겠습니다. 가장 먼저 GPU 드라이버와 CUDA 설치 가이드를 제공해 드리겠습니다. 
+GPU가 탑재된 게임용 노트북에 Ubuntu 22.04가 설치되어 있다고 하셨으니, NVIDIA 드라이버와 CUDA Toolkit 설치 방법을 안내해 드리겠습니다. 
+이 과정은 딥러닝 모델 개발에 필수적입니다.
+
+1. 기존 NVIDIA 드라이버 제거 (선택 사항)
+만약 이전에 NVIDIA 드라이버가 설치되어 있었다면, 충돌을 방지하기 위해 먼저 제거하는 것이 좋습니다. 다음 명령어를 터미널에 입력하세요:
+bash
+
+sudo apt-get purge nvidia* -y
+sudo apt-get autoremove -y
+sudo apt-get clean
+sudo rm -rf /usr/local/cuda*
+
+2. 최신 NVIDIA 드라이버 설치
+Ubuntu 22.04에서는 ubuntu-drivers 명령어를 사용하여 권장 드라이버를 쉽게 설치할 수 있습니다.
+먼저 사용 가능한 드라이버 목록을 확인합니다:
+bash
+
+ubuntu-drivers devices
+
+출력된 목록에서 recommended라고 표시된 드라이버 버전을 확인하고 설치합니다.
+예를 들어, nvidia-driver-535가 권장된다면:
+bash
+
+sudo apt update
+sudo apt install nvidia-driver-535 -y
+
+설치 후 시스템을 재부팅하여 드라이버가 제대로 적용되었는지 확인합니다:
+bash
+
+sudo reboot
+
+재부팅 후 다음 명령어로 드라이버 설치 여부를 확인합니다:
+bash
+
+nvidia-smi
+
+GPU 정보와 드라이버 버전이 정상적으로 출력되면 성공입니다.
+
+3. CUDA Toolkit 설치
+CUDA Toolkit은 NVIDIA GPU를 활용한 병렬 컴퓨팅 플랫폼입니다. 딥러닝 프레임워크(TensorFlow, PyTorch 등)를 사용하려면 CUDA가 필요합니다. 
+NVIDIA 공식 웹사이트에서 Ubuntu 22.04용 CUDA Toolkit을 다운로드하여 설치하는 것을 권장합니다. (예시: CUDA 12.2)
+먼저, NVIDIA CUDA Toolkit 다운로드 페이지(https://developer.nvidia.com/cuda-downloads )에 접속하여 Ubuntu 22.04, x86_64, deb(local)을 
+선택하면 설치 명령어가 나옵니다. 예를 들어, 다음과 같은 명령어를 사용합니다:
+bash
+
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+wget https://developer.download.nvidia.com/compute/cuda/12.2.2/local_installers/cuda-repo-ubuntu2204-12-2-local_12.2.2-1_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu2204-12-2-local_12.2.2-1_amd64.deb
+sudo cp /var/cuda-repo-ubuntu2204-12-2-local/cuda-*-keyring.gpg /usr/share/keyrings/
+sudo apt-get update
+sudo apt-get -y install cuda
+
+4. 환경 변수 설정
+CUDA 설치 후에는 환경 변수를 설정해야 합니다. ~/.bashrc 파일을 열어 다음 내용을 추가합니다:
+bash
+
+echo 'export PATH=/usr/local/cuda-12.2/bin${PATH:+:${PATH}}' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' >> ~/.bashrc
+source ~/.bashrc
+
+(참고: CUDA 버전은 설치한 버전에 맞게 cuda-12.2 부분을 수정하세요. )
+5. 설치 확인
+설치가 완료되면 다음 명령어로 CUDA 버전을 확인합니다:
+bash
+
+nvcc --version
+
+CUDA 컴파일러 버전 정보가 출력되면 성공입니다.
+이 단계를 완료하시면 GPU를 활용할 수 있는 기본적인 환경 설정이 마무리됩니다. 
+다음 단계로 Docker 및 NVIDIA Container Toolkit 설치 가이드를 제공해 드리겠습니다. 
+진행하시면서 궁금한 점이나 문제가 발생하면 언제든지 알려주세요.
+
+todo. 
+GPU 드라이버 및 CUDA 설치를 완료하셨다면, 다음 단계로 Docker와 NVIDIA Container Toolkit 설치 가이드를 제공해 드리겠습니다. 
+이 도구들은 KRA-AiGov 솔루션을 컨테이너 환경에서 개발하고 GPU를 활용하는 데 필수적입니다.
+
+1. Docker 설치
+Ubuntu에 Docker를 설치하는 가장 권장되는 방법은 Docker의 공식 저장소를 사용하는 것입니다. 
+다음 명령어를 순서대로 실행하세요:
+bash
+
+# 1. 기존 Docker 관련 패키지 제거 (선택 사항)
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+# 2. Docker 공식 GPG 키 추가
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg -y
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# 3. Docker APT 저장소 설정
+echo \
+  "deb [arch="$(dpkg --print-architecture )" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME" )" stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 4. Docker Engine 설치
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# 5. Docker 서비스 시작 및 활성화 확인
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo systemctl status docker
+
+# 6. 현재 사용자를 docker 그룹에 추가 (sudo 없이 Docker 사용 가능)
+sudo usermod -aG docker $USER
+newgrp docker
+
+newgrp docker 명령은 현재 쉘 세션에 변경 사항을 적용합니다. 
+새 터미널을 열거나 로그아웃 후 다시 로그인하면 sudo 없이 docker 명령을 사용할 수 있습니다.
+설치 확인:
+bash
+
+docker run hello-world
+
+"Hello from Docker!" 메시지가 출력되면 Docker 설치가 성공한 것입니다.
+
+
+2. NVIDIA Container Toolkit 설치
+Docker 컨테이너 내에서 GPU를 사용하려면 NVIDIA Container Toolkit이 필요합니다. 
+이 툴킷은 Docker가 NVIDIA GPU를 인식하고 컨테이너에 GPU 리소스를 할당할 수 있도록 해줍니다.
+bash
+
+# 1. NVIDIA Container Toolkit GPG 키 추가
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+&& curl -sSL https://nvidia.github.io/libnvidia-container/ubuntu2204/libnvidia-container.list | \
+sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# 2. 패키지 목록 업데이트 및 NVIDIA Container Toolkit 설치
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# 3. Docker 데몬 재시작하여 변경 사항 적용
+sudo systemctl restart docker
+
+설치 확인:
+bash
+
+docker run --rm --gpus all nvidia/cuda:12.2.2-base-ubuntu22.04 nvidia-smi
+
+(참고: nvidia/cuda:12.2.2-base-ubuntu22.04 이미지는 설치된 CUDA 버전에 맞게 조정하세요. 
+예를 들어, CUDA 12.2를 설치했다면 12.2.2-base-ubuntu22.04와 같이 사용합니다. )
+컨테이너 내부에서 nvidia-smi 명령이 정상적으로 실행되고 GPU 정보가 출력되면 NVIDIA Container Toolkit 설치가 성공한 것입니다.
+이 단계를 완료하시면 Docker 컨테이너 환경에서 GPU를 활용할 수 있는 준비가 완료됩니다. 
+
+todo. 
+Docker 및 NVIDIA Container Toolkit 설치를 완료하셨으니, 이제 KRA-AiGov 솔루션 개발을 위한 Dockerfile 예시를 제공해 드리겠습니다. 
+이 Dockerfile은 Python 기반의 AI/ML 개발 환경을 컨테이너 내부에 구축하고, GPU를 활용할 수 있도록 설정합니다.
+먼저, 프로젝트 루트 디렉토리에 Dockerfile과 requirements.txt 파일을 생성합니다.
+
+1. requirements.txt 파일 생성
+이 파일에는 프로젝트에 필요한 Python 라이브러리 목록을 작성합니다. 
+KRA-AiGov의 PromptGate, DashAILog, ShadowScan, TrustLLM 모듈 개발에 필요한 기본적인 라이브러리들을 포함했습니다. 
+필요에 따라 추가하거나 제거할 수 있습니다.
+text
+
+# requirements.txt
+fastapi
+uvicorn
+requests
+pydantic
+numpy
+pandas
+scikit-learn
+tensorflow # 또는 pytorch (선택)
+rebuff-sdk # PromptGate에서 Rebuff를 사용할 경우
+
+2. Dockerfile 파일 생성
+
+nano Dockerfile
+
+# Dockerfile
+
+# NVIDIA CUDA 기반 Ubuntu 22.04 이미지 사용
+# 설치된 CUDA 버전에 맞춰 태그를 변경하세요 (예: 12.2.2-base-ubuntu22.04)
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04
+
+# 환경 변수 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED 1
+
+# 시스템 업데이트 및 필요한 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3-pip \
+    git \
+    curl \
+    build-essential \
+    libgl1-mesa-glx \
+    libsm6 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 3.10을 기본 python으로 설정
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# requirements.txt 복사 및 Python 라이브러리 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 코드 복사
+COPY . .
+
+# 포트 노출 (필요에 따라 변경)
+EXPOSE 8000
+
+# 컨테이너 실행 시 기본 명령어 (예시: FastAPI 애플리케이션 실행)
+# 실제 애플리케이션의 진입점에 따라 변경해야 합니다.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+3. Docker 이미지 빌드 및 컨테이너 실행
+프로젝트 루트 디렉토리에서 다음 명령어를 실행하여 Docker 이미지를 빌드합니다:
+bash
+
+docker build -t kra-aigov-dev .
+
+이미지 빌드가 완료되면 다음 명령어로 컨테이너를 실행합니다:
+bash
+
+docker run -it --rm --gpus all -p 8000:8000 -v $(pwd):/app kra-aigov-dev
+
+    -it: 상호작용 터미널 모드
+    --rm: 컨테이너 종료 시 자동으로 제거
+    --gpus all: 컨테이너 내에서 모든 GPU 사용 허용
+    -p 8000:8000: 호스트의 8000번 포트를 컨테이너의 8000번 포트에 연결
+    -v $(pwd):/app: 현재 디렉토리($(pwd))를 컨테이너의 /app 디렉토리에 마운트하여 호스트와 컨테이너 간 코드 공유 및 실시간 변경 반영
+
+이 Dockerfile은 KRA-AiGov 솔루션 개발을 위한 기본적인 환경을 제공합니다.  
+실제 개발 시에는 각 모듈의 특성과 필요에 따라 Dockerfile을 더욱 세분화하거나 최적화할 수 있습니다. 
+예를 들어, 특정 모듈만 빌드하거나, 개발 및 배포 환경에 따라 다른 Dockerfile을 사용할 수 있습니다.
+다음 단계에서는 개발 환경 설정이 제대로 되었는지 확인하고, 문제가 발생할 경우 해결을 지원해 드리겠습니다. 
+이 Dockerfile을 사용해 보시고 궁금한 점이나 문제가 발생하면 언제든지 알려주세요.
+
+todo. 
+이제 KRA-AiGov 솔루션 개발을 위한 Dockerfile 예시를 제공해 드렸습니다. 이 Dockerfile을 사용하여 개발 환경을 구축하고 실행해 보시길 권장합니다.
+개발 환경 설정 확인 및 문제 해결 지원
+Dockerfile을 사용하여 이미지를 빌드하고 컨테이너를 실행하는 과정에서 다음과 같은 문제가 발생할 수 있습니다:
+
+- GPU 인식 문제: nvidia-smi 명령이 컨테이너 내부에서 제대로 작동하지 않거나, 딥러닝 프레임워크가 GPU를 인식하지 못하는 경우.
+- 라이브러리 설치 오류: requirements.txt에 명시된 라이브러리 설치 중 의존성 문제나 빌드 오류가 발생하는 경우.
+- 포트 충돌: 컨테이너가 사용하는 포트(예: 8000번)가 호스트 시스템의 다른 프로세스와 충돌하는 경우.
+- 권한 문제: 파일 시스템 접근 권한 등으로 인해 컨테이너 내부에서 특정 작업을 수행하지 못하는 경우.
+
+이 단계가 완료되면 다음 단계인 PromptGate 모듈 개발 가이드로 넘어가겠습니다.
+
+todo. 
+
+이제 KRA-AiGov 솔루션의 첫 번째 핵심 모듈인 PromptGate 개발 가이드를 시작하겠습니다.
+
+1. PromptGate의 역할
+PromptGate는 KRA-AiGov 솔루션의 최전선에서 기업 내부 사용자와 외부 AI 서비스(예: ChatGPT, Claude, Bard 등) 간의 모든 AI 요청(프롬프트) 및 응답을 중계하고
+통제하는 핵심 게이트웨이 역할을 수행합니다. 주요 역할은 다음과 같습니다.
+ - 보안 강화: 사용자가 AI 서비스에 입력하는 민감 정보(개인 식별 정보, 기업 기밀, 프로젝트 코드 등)가 외부로 유출되는 것을 방지합니다. 
+      또한, 프롬프트 인젝션과 같은 악의적인 공격으로부터 AI 서비스를 보호합니다.
+ - 정책 준수: 기업의 AI 사용 정책 및 가이드라인을 강제하고, 승인되지 않은 AI 사용이나 부적절한 콘텐츠 생성을 차단합니다.
+ - 가시성 확보: 모든 AI 사용 기록(입력 프롬프트, AI 응답, 사용자 정보, 시간 등)을 기록하여 DashIQ 모듈로 전송하고, 
+      이를 통해 기업 내 AI 사용 현황에 대한 투명한 가시성을 제공합니다.
+ - 비용 효율성: 특정 AI 서비스의 과도한 사용을 통제하거나, 내부 LLM(TrustLLM)으로 트래픽을 전환하여 외부 AI 서비스 사용 비용을 절감하는 기반을 마련합니다.
+
+2. PromptGate의 아키텍처
+PromptGate는 기본적으로 AI 프록시 서버 형태로 구현됩니다. 사용자의 AI 요청은 PromptGate를 거쳐 외부 AI 서비스로 전달되고, 외부 AI 서비스의 응답 
+또한 PromptGate를 거쳐 사용자에게 전달됩니다. 이 과정에서 PromptGate는 다음과 같은 주요 구성 요소를 통해 역할을 수행합니다.
+mermaid
+
+graph TD
+    A[내부 사용자] -->|AI 서비스 요청| B(PromptGate)
+    B -->|필터링, 마스킹, 로깅| C(외부 AI 서비스)
+    C -->|AI 응답| B
+    B -->|필터링, 마스킹, 로깅| A
+    B -->|로그 전송| D[DashIQ (로그 저장소)]
+    B -->|정책 조회/업데이트| E[정책 관리 시스템 (가상)]
+
+    subgraph PromptGate 내부 구성
+        B1[요청 인터셉터] --> B2[인증/권한 모듈]
+        B2 --> B3[프롬프트 필터링 모듈]
+        B3 --> B4[민감 정보 마스킹 모듈]
+        B4 --> B5[로깅 모듈]
+        B5 --> B6[외부 AI 서비스 연동 모듈]
+        B6 --> B7[응답 필터링 모듈]
+        B7 --> B5
+        B5 --> B1
+    end
+
+  1)요청 인터셉터: 사용자의 AI 서비스 요청을 가로채는 역할을 합니다. 이는 웹 프록시(Nginx + Lua, Envoy) 또는 네트워크 수준의 프록시 설정을 통해 구현될 수 있습니다.
+  2)인증/권한 모듈: 요청을 보낸 사용자의 신원을 확인하고, 해당 사용자가 특정 AI 서비스를 사용할 권한이 있는지, 또는 어떤 정책이 적용되어야 하는지 확인합니다.
+  3)프롬프트 필터링 모듈: Rebuff와 같은 도구를 활용하여 프롬프트 인젝션 공격 시도를 탐지하고 차단합니다. 
+       또한, 특정 키워드나 패턴을 기반으로 부적절하거나 정책에 위배되는 프롬프트를 필터링합니다.
+  4)민감 정보 마스킹 모듈: 프롬프트 내에 포함된 주민등록번호, 신용카드 번호, 이메일 주소, 사내 기밀 용어 등 민감 정보를 탐지하고, 이를 마스킹 처리하여 외부 AI 
+        서비스로 전송되지 않도록 합니다.
+  5)로깅 모듈: 처리된 모든 요청 및 응답에 대한 상세 정보를 기록합니다. 여기에는 사용자 정보, 요청 시간, 입력 프롬프트(마스킹 전후), AI 응답(필터링 전후), 적용된 정책, 
+        탐지된 위협 유형 등이 포함됩니다. 이 로그는 DashIQ로 전송됩니다.
+  6)외부 AI 서비스 연동 모듈: 필터링 및 마스킹이 완료된 프롬프트를 실제 외부 AI 서비스(OpenAI API, Claude API 등)로 전달하고, 그 응답을 받아옵니다.
+  7)응답 필터링 모듈: 외부 AI 서비스로부터 받은 응답 또한 정책에 따라 필터링합니다. 예를 들어, 유해하거나 부적절한 콘텐츠, 또는 정책에 위배되는 정보가 포함된 응답을 
+        사용자에게 전달하기 전에 차단하거나 수정합니다.
+
+PromptGate는 이러한 모듈들이 유기적으로 결합하여 동작함으로써, 기업 내 AI 사용의 보안과 통제, 가시성을 동시에 확보할 수 있도록 설계됩니다.
+다음 단계에서는 PromptGate의 핵심 기능(필터링, 마스킹, 로깅)을 더 구체적으로 정의하고, 이를 구현하기 위한 기본적인 FastAPI 코드 구조를 제공해 드리겠습니다. 
+
+이제 PromptGate의 핵심 기능들을 정의하고, 이를 구현하기 위한 기본적인 FastAPI 코드 구조를 제공해 드리겠습니다.
+
+3. PromptGate 핵심 기능 정의
+PromptGate의 MVP(Minimum Viable Product) 단계에서 구현할 핵심 기능은 크게 세 가지입니다: 프롬프트 필터링, 민감 정보 마스킹, 그리고 로깅입니다.
+
+가) 프롬프트 필터링 (Prompt Filtering)
+  1) 목표: 사용자의 AI 서비스 요청(프롬프트)이 기업의 보안 정책이나 사용 가이드라인에 위배되는지 검사하고, 부적절한 프롬프트를 차단하거나 경고합니다. 
+                     특히 프롬프트 인젝션 공격 시도를 탐지하고 방어하는 데 중점을 둡니다.
+  2) 세부 기능:
+     - 프롬프트 인젝션 탐지: Rebuff Python-SDK와 같은 도구를 활용하여 악의적인 프롬프트 인젝션 패턴을 식별합니다.
+     - 금지 키워드/문구 차단: 사전에 정의된 금지 키워드(예: '기밀', '내부 문서 유출', '개인 정보 추출')나 문구가 포함된 프롬프트를 탐지하고 차단합니다.
+     - AI 서비스별 접근 제어: 특정 AI 서비스(예: ChatGPT, Claude)에 대한 접근을 사용자 그룹 또는 부서별로 허용하거나 차단하는 정책을 적용합니다. 
+  3) 처리 방식: 탐지된 위협 수준에 따라 프롬프트 차단, 사용자에게 경고 메시지 반환, 관리자에게 알림 전송 등의 조치를 취합니다.
+
+나) 민감 정보 마스킹 (Sensitive Information Masking)
+  1) 목표: 사용자가 AI 서비스에 입력하는 프롬프트 내에 포함된 민감 정보가 외부 AI 서비스로 전송되기 전에 식별하고, 이를 비식별화(마스킹) 처리하여 정보 유출을 방지합니다.
+  2) 세부 기능:
+     - 개인 식별 정보(PII) 탐지: 주민등록번호, 전화번호, 이메일 주소, 신용카드 번호 등 정형화된 개인 식별 정보를 탐지합니다.
+     - 기업 기밀 정보 탐지: 사전에 정의된 기업 내부 기밀 용어, 프로젝트 코드, 특정 문서 번호 등 비정형화된 기업 기밀 정보를 탐지합니다.
+     - 자동 마스킹: 탐지된 민감 정보를 [MASKED_PII], [MASKED_CONFIDENTIAL] 등과 같이 대체하거나, 일부를 * 등으로 가리는 방식으로 마스킹 처리합니다.
+  3) 처리 방식: 마스킹 처리된 프롬프트를 외부 AI 서비스로 전송하고, 원본 프롬프트와 마스킹된 프롬프트 정보를 로깅합니다.
+
+다) 로깅 (Logging)
+  1) 목표: PromptGate를 통해 처리되는 모든 AI 서비스 요청 및 응답에 대한 상세 정보를 기록하여, AI 사용 현황에 대한 가시성을 확보하고, 보안 감사 및 분석을 위한 데이터를 제공합니다.
+  2) 세부 기능:
+     - 요청/응답 정보 기록: 사용자 ID, 요청 시간, 원본 프롬프트, 마스킹된 프롬프트, AI 서비스 종류, AI 응답, 응답 시간, 처리 결과(성공/실패, 차단 여부, 탐지된 위협 유형)
+              등을 기록합니다.
+     - 메타데이터 기록: 사용자 IP 주소, 디바이스 정보, 적용된 정책 ID 등 추가적인 메타데이터를 기록합니다.
+     - 로그 전송: 수집된 로그를 DashIQ 모듈(또는 중앙 집중식 로그 관리 시스템)로 실시간 또는 배치 형태로 전송합니다.
+  3) 처리 방식: 비동기 방식으로 로그를 처리하여 PromptGate의 성능에 영향을 주지 않도록 합니다.
+
+4. PromptGate 기본 FastAPI 코드 구조 제공
+PromptGate는 Python 기반의 비동기 웹 프레임워크인 FastAPI를 사용하여 구현할 수 있습니다. 
+FastAPI는 높은 성능과 자동 문서화 기능을 제공하여 API 개발에 매우 적합합니다.
+다음은 PromptGate의 기본적인 FastAPI 애플리케이션 구조입니다. 이 구조는 위에서 정의한 핵심 기능들을 통합할 수 있는 틀을 제공합니다.
+python
+
+# main.py
+
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel
+import httpx # 비동기 HTTP 요청을 위한 라이브러리
+import os
+import logging
+import asyncio
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format="%(asctime )s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# --- 설정 및 환경 변수 --- #
+# 외부 AI 서비스 API 키 (예시)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your_openai_api_key")
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY", "your_claude_api_key")
+
+# 외부 AI 서비스 엔드포인트 (예시)
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+CLAUDE_CHAT_URL = "https://api.anthropic.com/v1/messages"
+
+# Rebuff SDK 초기화 (설치 필요: pip install rebuff-sdk )
+# from rebuff import Rebuff
+# rebuff_client = Rebuff(api_key="your_rebuff_api_key") # Rebuff API 키 필요
+
+# --- 데이터 모델 정의 --- #
+class PromptRequest(BaseModel):
+    user_id: str
+    ai_service: str # "openai", "claude" 등
+    prompt: str
+    # 추가적인 메타데이터 필드
+    session_id: str = None
+    device_info: str = None
+
+# --- PromptGate 핵심 기능 구현 (Placeholder) --- #
+
+async def filter_prompt(prompt: str, user_id: str) -> (bool, str, str):
+    """
+    프롬프트 필터링 로직을 구현합니다.
+    프롬프트 인젝션 탐지, 금지 키워드 차단 등을 수행합니다.
+    반환값: (필터링 성공 여부, 필터링된 프롬프트, 탐지된 위협 유형 또는 메시지)
+    """
+    logger.info(f"[Filter] Filtering prompt for user {user_id}: {prompt[:50]}...")
+    # TODO: Rebuff Python-SDK 연동 및 프롬프트 인젝션 탐지 로직 추가
+    # is_injection = rebuff_client.detect_injection(prompt)
+    # if is_injection:
+    #     return False, prompt, "Prompt Injection Detected"
+
+    # TODO: 금지 키워드/문구 차단 로직 추가
+    forbidden_keywords = ["기밀", "내부 문서 유출", "개인 정보 추출"]
+    for keyword in forbidden_keywords:
+        if keyword in prompt:
+            return False, prompt, f"Forbidden keyword '{keyword}' detected"
+
+    return True, prompt, "No threats detected"
+
+async def mask_sensitive_info(prompt: str) -> (str, dict):
+    """
+    프롬프트 내 민감 정보를 마스킹합니다.
+    반환값: (마스킹된 프롬프트, 마스킹된 정보 유형 및 원본 값 딕셔너리)
+    """
+    logger.info(f"[Mask] Masking sensitive info in prompt: {prompt[:50]}...")
+    masked_prompt = prompt
+    masked_details = {}
+
+    # TODO: 주민등록번호, 전화번호, 이메일 등 PII 탐지 및 마스킹 로직 추가
+    # 예시: 간단한 이메일 마스킹
+    import re
+    email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+    found_emails = re.findall(email_pattern, masked_prompt)
+    for email in found_emails:
+        masked_prompt = masked_prompt.replace(email, "[MASKED_EMAIL]")
+        masked_details["email"] = email # 실제로는 원본 값 저장 시 주의 필요
+
+    # TODO: 기업 기밀 용어 탐지 및 마스킹 로직 추가
+    confidential_terms = ["Project X", "Confidential Data"]
+    for term in confidential_terms:
+        if term in masked_prompt:
+            masked_prompt = masked_prompt.replace(term, "[MASKED_CONFIDENTIAL]")
+            masked_details["confidential_term"] = term
+
+    return masked_prompt, masked_details
+
+async def log_ai_usage(log_data: dict):
+    """
+    AI 사용 로그를 기록하고 DashIQ로 전송합니다.
+    """
+    logger.info(f"[Log] Logging AI usage: {log_data}")
+    # TODO: DashIQ 모듈로 로그 전송 로직 구현 (HTTP 요청, 메시지 큐 등)
+    # 예시: 간단히 파일에 저장하거나 콘솔에 출력
+    with open("ai_usage.log", "a") as f:
+        f.write(f"{log_data}\n")
+    logger.info("Log saved to ai_usage.log")
+
+# --- FastAPI 애플리케이션 인스턴스 생성 --- #
+app = FastAPI(title="KRA-AiGov PromptGate", version="0.1.0")
+
+# --- API 엔드포인트 정의 --- #
+@app.post("/process_prompt")
+async def process_prompt(request: PromptRequest):
+    original_prompt = request.prompt
+    user_id = request.user_id
+    ai_service = request.ai_service
+
+    logger.info(f"Received request from {user_id} for {ai_service}: {original_prompt[:50]}...")
+
+    # 1. 프롬프트 필터링
+    is_allowed, filtered_prompt, filter_message = await filter_prompt(original_prompt, user_id)
+    if not is_allowed:
+        log_data = {
+            "user_id": user_id,
+            "ai_service": ai_service,
+            "original_prompt": original_prompt,
+            "masked_prompt": "N/A",
+            "ai_response": "N/A",
+            "status": "BLOCKED",
+            "reason": filter_message,
+            "timestamp": asyncio.current_task()._loop.time() # 임시 타임스탬프
+        }
+        await log_ai_usage(log_data)
+        raise HTTPException(status_code=403, detail=f"Prompt blocked: {filter_message}")
+
+    # 2. 민감 정보 마스킹
+    masked_prompt, masked_details = await mask_sensitive_info(filtered_prompt)
+
+    # 3. 외부 AI 서비스로 요청 전송 (Placeholder)
+    ai_response = ""
+    status = "SUCCESS"
+    try:
+        async with httpx.AsyncClient( ) as client:
+            if ai_service == "openai":
+                headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+                payload = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": masked_prompt}]}
+                response = await client.post(OPENAI_CHAT_URL, headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
+                ai_response = response.json()["choices"][0]["message"]["content"]
+            elif ai_service == "claude":
+                headers = {"x-api-key": CLAUDE_API_KEY, "Content-Type": "application/json", "anthropic-version": "2023-06-01"}
+                payload = {"model": "claude-3-opus-20240229", "messages": [{"role": "user", "content": masked_prompt}]}
+                response = await client.post(CLAUDE_CHAT_URL, headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
+                ai_response = response.json()["content"][0]["text"]
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported AI service")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error during AI service call: {e.response.status_code} - {e.response.text}" )
+        ai_response = f"Error: AI service returned status {e.response.status_code}"
+        status = "AI_SERVICE_ERROR"
+        raise HTTPException(status_code=500, detail="Failed to get response from AI service")
+    except httpx.RequestError as e:
+        logger.error(f"Request error during AI service call: {e}" )
+        ai_response = f"Error: Could not connect to AI service"
+        status = "NETWORK_ERROR"
+        raise HTTPException(status_code=500, detail="Failed to connect to AI service")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        ai_response = f"Error: An unexpected error occurred"
+        status = "UNEXPECTED_ERROR"
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+    # 4. 응답 필터링 (선택 사항: MVP 이후 고려)
+    # is_response_allowed, final_response, response_filter_message = await filter_response(ai_response)
+    # if not is_response_allowed:
+    #     ai_response = "Response blocked due to policy violation."
+    #     status = "RESPONSE_BLOCKED"
+
+    # 5. AI 사용 로그 기록
+    log_data = {
+        "user_id": user_id,
+        "ai_service": ai_service,
+        "original_prompt": original_prompt,
+        "masked_prompt": masked_prompt,
+        "masked_details": masked_details,
+        "ai_response": ai_response,
+        "status": status,
+        "filter_message": filter_message if not is_allowed else "N/A",
+        "timestamp": asyncio.current_task()._loop.time() # 임시 타임스탬프
+    }
+    await log_ai_usage(log_data)
+
+    return {"status": "success", "response": ai_response}
+
+# --- 애플리케이션 실행 (개발용) --- #
+# 이 파일이 직접 실행될 때만 uvicorn을 실행합니다.
+# 실제 배포 시에는 `uvicorn main:app --host 0.0.0.0 --port 8000` 명령어를 사용합니다.
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+코드 설명:
+
+    PromptRequest: 사용자의 요청을 정의하는 Pydantic 모델입니다. user_id, ai_service, prompt를 필수로 받습니다.
+    filter_prompt 함수: 프롬프트 필터링 로직을 담당합니다. 현재는 금지 키워드 탐지 예시만 포함되어 있으며, Rebuff 연동 및 더 복잡한 필터링 로직은 TODO 주석 부분에 추가해야 합니다.
+    mask_sensitive_info 함수: 민감 정보 마스킹 로직을 담당합니다. 현재는 간단한 이메일 마스킹 예시만 포함되어 있으며, 주민등록번호, 전화번호 등 다양한 PII 및 기업 기밀 정보 탐지 로직을 추가해야 합니다.
+    log_ai_usage 함수: AI 사용 로그를 기록하는 함수입니다. 현재는 파일에 간단히 저장하는 예시이며, 실제로는 DashIQ 모듈로 로그를 전송하는 비동기 로직을 구현해야 합니다.
+    process_prompt 엔드포인트: /process_prompt 경로로 POST 요청을 받습니다. 이 엔드포인트는 다음 단계를 수행합니다.
+        filter_prompt를 호출하여 프롬프트를 필터링합니다. 필터링에 실패하면 403 Forbidden 에러를 반환합니다.
+        mask_sensitive_info를 호출하여 민감 정보를 마스킹합니다.
+        마스킹된 프롬프트를 외부 AI 서비스(OpenAI 또는 Claude)로 전송하고 응답을 받습니다. (API 키는 환경 변수에서 로드하도록 설정되어 있습니다.)
+        log_ai_usage를 호출하여 모든 처리 과정을 로그로 기록합니다.
+    환경 변수: API 키와 같은 민감 정보는 코드에 직접 하드코딩하지 않고 환경 변수(os.getenv)에서 로드하도록 설정했습니다. 이는 보안 모범 사례입니다.
+    httpx: 비동기 HTTP 요청을 처리하기 위해 httpx 라이브러리를 사용했습니다. requests 라이브러리는 동기 방식이므로 FastAPI의 비동기 특성을 활용하기 어렵습니다.
+
+다음 단계:
+이 기본 코드 구조를 바탕으로 다음 단계에서는 Rebuff Python-SDK 통합 가이드 및 코드 예시, 민감 정보 마스킹 구현 가이드 및 코드 예시, DashIQ 연동을 위한 로깅 구현 가이드 및 코드 예시를 차례로 제공해 드리겠습니다.
+이 코드를 main.py 파일로 저장하고, requirements.txt에 fastapi, uvicorn, httpx를 추가한 후 Docker 컨테이너에서 실행해 볼 수 있습니다. 궁금한 점이나 수정이 필요한 부분이 있다면 언제든지 말씀해주세요.
+
+todo. 
+PromptGate의 기본 FastAPI 코드 구조를 제공해 드렸으니, 이제 PromptGate의 핵심 기능 중 하나인 프롬프트 필터링을 강화하기 위해 Rebuff Python-SDK를 통합하는 가이드와 코드 예시를 제공해 드리겠습니다.
+Rebuff Python-SDK 통합 가이드 및 코드 예시
+Rebuff는 프롬프트 인젝션 공격을 탐지하고 방어하는 데 특화된 강력한 도구입니다. PromptGate에 Rebuff를 통합하여 AI 서비스의 보안을 한층 강화할 수 있습니다.
+
+1. Rebuff Python-SDK 설치
+먼저, requirements.txt 파일에 rebuff-sdk를 추가하고 Docker 컨테이너를 다시 빌드하거나, 컨테이너 내부에서 직접 설치합니다.
+text
+
+# requirements.txt 에 추가
+rebuff-sdk
+
+컨테이너 내부에서 설치하는 경우:
+bash
+
+pip install rebuff-sdk
+
+2. Rebuff API 키 설정
+Rebuff를 사용하려면 API 키가 필요합니다. 이는 Rebuff 서비스에 가입하여 발급받을 수 있습니다. 발급받은 API 키는 환경 변수로 설정하여 main.py에서 로드하도록 합니다.
+python
+
+# main.py (기존 코드에 추가 또는 수정)
+
+import os
+from rebuff import Rebuff
+
+# ... (기존 코드)
+
+# Rebuff SDK 초기화
+REBUFF_API_KEY = os.getenv("REBUFF_API_KEY", "your_rebuff_api_key_here") # 실제 키로 대체하거나 환경 변수 설정
+rebuff_client = Rebuff(api_key=REBUFF_API_KEY)
+
+# ... (기존 코드)
+
+3. filter_prompt 함수에 Rebuff 통합
+main.py 파일의 filter_prompt 함수를 수정하여 Rebuff의 프롬프트 인젝션 탐지 기능을 통합합니다. Rebuff는 detect_injection 메서드를 통해 프롬프트 인젝션 여부를 판단합니다.
+python
+
+# main.py (filter_prompt 함수 수정)
+
+async def filter_prompt(prompt: str, user_id: str) -> (bool, str, str):
+    """
+    프롬프트 필터링 로직을 구현합니다.
+    프롬프트 인젝션 탐지, 금지 키워드 차단 등을 수행합니다.
+    반환값: (필터링 성공 여부, 필터링된 프롬프트, 탐지된 위협 유형 또는 메시지)
+    """
+    logger.info(f"[Filter] Filtering prompt for user {user_id}: {prompt[:50]}...")
+
+    # 1. Rebuff를 이용한 프롬프트 인젝션 탐지
+    try:
+        # Rebuff의 detect_injection 메서드 호출
+        # is_injection: 프롬프트 인젝션 여부 (True/False)
+        # score: 인젝션 가능성 점수
+        # vector_relavance: 벡터 유사성 점수
+        # top_k_chunks: 유사한 공격 패턴
+        is_injection, score, vector_relavance, top_k_chunks = rebuff_client.detect_injection(prompt)
+
+        if is_injection:
+            logger.warning(f"[Rebuff] Prompt Injection Detected for user {user_id} with score {score}. Top K chunks: {top_k_chunks}")
+            # Rebuff에 공격 패턴을 학습시키기 위해 add_canary_word 호출 (선택 사항)
+            # rebuff_client.add_canary_word(prompt, "prompt_injection_attack")
+            return False, prompt, f"Prompt Injection Detected by Rebuff (Score: {score})"
+    except Exception as e:
+        logger.error(f"[Rebuff Error] Failed to detect injection: {e}")
+        # Rebuff 서비스에 문제가 발생하더라도 PromptGate가 멈추지 않도록 예외 처리
+        # 이 경우, 다른 필터링 로직에 의존하거나 기본적으로 허용할 수 있습니다.
+
+    # 2. 금지 키워드/문구 차단 로직 (기존 코드 유지)
+    forbidden_keywords = ["기밀", "내부 문서 유출", "개인 정보 추출"]
+    for keyword in forbidden_keywords:
+        if keyword in prompt:
+            logger.warning(f"[Keyword Filter] Forbidden keyword \'{keyword}\' detected for user {user_id}")
+            return False, prompt, f"Forbidden keyword \'{keyword}\' detected"
+
+    return True, prompt, "No threats detected"
+
+코드 설명:
+
+    rebuff_client = Rebuff(api_key=REBUFF_API_KEY): Rebuff 객체를 초기화합니다. REBUFF_API_KEY는 환경 변수에서 로드됩니다.
+    rebuff_client.detect_injection(prompt): 이 메서드를 호출하여 입력된 prompt에 대해 프롬프트 인젝션 공격 여부를 탐지합니다. 반환값으로 is_injection (부울), score (점수), vector_relavance (벡터 유사성), top_k_chunks (유사 공격 패턴)를 받습니다.
+    if is_injection:: is_injection이 True이면 프롬프트 인젝션이 탐지된 것이므로, 해당 프롬프트를 차단하고 관련 메시지를 반환합니다.
+    try...except: Rebuff 서비스 호출 중 발생할 수 있는 네트워크 오류나 API 오류에 대비하여 예외 처리를 추가했습니다. 이를 통해 Rebuff 서비스에 문제가 발생하더라도 PromptGate가 멈추지 않고 다른 필터링 로직을 계속 수행할 수 있도록 합니다.
+    `rebuff_client.add_canary_word(prompt,
+
+todo. 
+PromptGate의 Rebuff 통합 가이드를 제공해 드렸으니, 이제 PromptGate의 또 다른 핵심 기능인 민감 정보 마스킹 구현 가이드와 코드 예시를 제공해 드리겠습니다.
+민감 정보 마스킹 구현 가이드 및 코드 예시
+민감 정보 마스킹은 사용자가 AI 서비스에 입력하는 프롬프트 내의 개인 식별 정보(PII)나 기업 기밀 정보가 외부로 유출되는 것을 방지하는 중요한 보안 기능입니다. mask_sensitive_info 함수를 고도화하여 다양한 유형의 민감 정보를 탐지하고 마스킹하는 로직을 구현할 수 있습니다.
+1. 민감 정보 탐지 전략
+민감 정보 탐지에는 여러 가지 방법이 있습니다.
+
+    정규 표현식(Regular Expressions): 주민등록번호, 전화번호, 이메일 주소, 신용카드 번호 등 정형화된 패턴을 가지는 PII를 탐지하는 데 매우 효과적입니다.
+    키워드/사전 기반 탐지: 기업 내부에서 사용하는 특정 기밀 용어, 프로젝트 코드, 고객사 이름 등 비정형화된 정보를 사전에 정의된 키워드 목록이나 사전을 기반으로 탐지합니다.
+    NLP(자연어 처리) 기반 탐지: Named Entity Recognition (NER)과 같은 NLP 기술을 사용하여 문맥을 이해하고 사람 이름, 조직명, 위치 등 비정형화된 PII를 탐지할 수 있습니다. (MVP 이후 고려)
+
+MVP 단계에서는 정규 표현식과 키워드/사전 기반 탐지를 중심으로 구현하는 것을 권장합니다.
+2. mask_sensitive_info 함수 고도화
+main.py 파일의 mask_sensitive_info 함수를 수정하여 다양한 민감 정보를 탐지하고 마스킹하는 로직을 추가합니다.
+python
+
+# main.py (mask_sensitive_info 함수 수정)
+
+import re
+
+async def mask_sensitive_info(prompt: str) -> (str, dict):
+    """
+    프롬프트 내 민감 정보를 마스킹합니다.
+    반환값: (마스킹된 프롬프트, 마스킹된 정보 유형 및 원본 값 딕셔너리)
+    """
+    logger.info(f"[Mask] Masking sensitive info in prompt: {prompt[:50]}...")
+    masked_prompt = prompt
+    masked_details = {}
+
+    # --- 1. 개인 식별 정보 (PII) 마스킹 --- #
+
+    # 1.1. 이메일 주소 마스킹
+    email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+    found_emails = re.findall(email_pattern, masked_prompt)
+    for email in found_emails:
+        masked_prompt = masked_prompt.replace(email, "[MASKED_EMAIL]")
+        masked_details.setdefault("email", []).append(email)
+
+    # 1.2. 전화번호 마스킹 (한국 휴대폰 번호 예시: 010-XXXX-XXXX 또는 010XXXXXXXX)
+    phone_pattern = r"01[0-9][ -]?\d{4}[ -]?\d{4}"
+    found_phones = re.findall(phone_pattern, masked_prompt)
+    for phone in found_phones:
+        masked_prompt = masked_prompt.replace(phone, "[MASKED_PHONE]")
+        masked_details.setdefault("phone", []).append(phone)
+
+    # 1.3. 주민등록번호 마스킹 (YYYYMMDD-XXXXXXX)
+    ssn_pattern = r"\d{6}[ -]?[1-4]\d{6}"
+    found_ssns = re.findall(ssn_pattern, masked_prompt)
+    for ssn in found_ssns:
+        masked_prompt = masked_prompt.replace(ssn, "[MASKED_SSN]")
+        masked_details.setdefault("ssn", []).append(ssn)
+
+    # 1.4. 신용카드 번호 마스킹 (16자리 숫자, 4자리씩 하이픈 또는 공백)
+    credit_card_pattern = r"(?:\d{4}[ -]?){3}\d{4}"
+    found_credit_cards = re.findall(credit_card_pattern, masked_prompt)
+    for cc in found_credit_cards:
+        masked_prompt = masked_prompt.replace(cc, "[MASKED_CREDIT_CARD]")
+        masked_details.setdefault("credit_card", []).append(cc)
+
+    # --- 2. 기업 기밀 정보 마스킹 --- #
+
+    # 2.1. 사전에 정의된 기업 기밀 용어 마스킹
+    # 이 목록은 기업의 특성에 맞게 지속적으로 업데이트되어야 합니다.
+    confidential_terms = [
+        "Project Alpha", "고객사 A 계약서", "내부 기밀 문서", 
+        "KRASE_SECRET_KEY", "재무보고서 2025", "특허 출원 번호"
+    ]
+    for term in confidential_terms:
+        if term in masked_prompt:
+            masked_prompt = masked_prompt.replace(term, "[MASKED_CONFIDENTIAL]")
+            masked_details.setdefault("confidential_term", []).append(term)
+
+    # 2.2. 특정 패턴의 사내 코드/ID 마스킹 (예시: KR-AIGOV-XXXX)
+    internal_id_pattern = r"KR-AIGOV-\d{4}"
+    found_internal_ids = re.findall(internal_id_pattern, masked_prompt)
+    for internal_id in found_internal_ids:
+        masked_prompt = masked_prompt.replace(internal_id, "[MASKED_INTERNAL_ID]")
+        masked_details.setdefault("internal_id", []).append(internal_id)
+
+    return masked_prompt, masked_details
+
+코드 설명:
+
+    정규 표현식 사용: re 모듈을 사용하여 이메일, 전화번호, 주민등록번호, 신용카드 번호 등 일반적인 PII 패턴을 탐지합니다. 각 패턴은 한국의 일반적인 형식에 맞춰 예시로 작성되었습니다. 실제 적용 시에는 기업의 특성과 사용될 수 있는 다양한 패턴을 고려하여 정교하게 다듬어야 합니다.
+    키워드 목록: confidential_terms 리스트에 기업 내부에서 기밀로 분류될 수 있는 용어들을 정의했습니다. 이 목록은 기업의 보안 정책에 따라 지속적으로 업데이트하고 확장해야 합니다.
+    masked_details 딕셔너리: 마스킹된 정보의 유형과 원본 값을 기록합니다. 이는 로깅 모듈에서 활용되어 어떤 정보가 마스킹되었는지 추적하는 데 사용될 수 있습니다. setdefault를 사용하여 동일 유형의 여러 정보가 탐지될 경우 리스트 형태로 저장되도록 했습니다.
+    마스킹 태그: 탐지된 민감 정보는 [MASKED_EMAIL], [MASKED_PHONE], [MASKED_SSN], [MASKED_CREDIT_CARD], [MASKED_CONFIDENTIAL], [MASKED_INTERNAL_ID]와 같은 명확한 태그로 대체됩니다. 이는 마스킹된 정보의 종류를 쉽게 식별할 수 있도록 합니다.
+
+주의사항:
+
+    정규 표현식의 정확성: 정규 표현식은 강력하지만, 오탐(False Positive)이나 미탐(False Negative)이 발생할 수 있습니다. 실제 환경에 적용하기 전에 충분한 테스트와 검증이 필요합니다.
+    기업 기밀 용어의 관리: confidential_terms와 같은 기업 기밀 용어 목록은 보안상 중요한 정보이므로, 안전하게 관리되어야 합니다. 외부 노출을 최소화하고, 주기적으로 업데이트하는 프로세스를 수립해야 합니다.
+    성능 고려: 매우 긴 프롬프트나 대량의 프롬프트에 대해 복잡한 정규 표현식이나 많은 키워드 목록을 적용할 경우 성능 저하가 발생할 수 있습니다. 성능 테스트를 통해 병목 현상을 파악하고 최적화해야 합니다.
+
+이 가이드와 코드 예시를 바탕으로 PromptGate의 민감 정보 마스킹 기능을 구현해 보십시오. 다음 단계에서는 DashIQ 연동을 위한 로깅 구현 가이드 및 코드 예시를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+PromptGate의 민감 정보 마스킹 구현 가이드를 제공해 드렸으니, 이제 PromptGate의 마지막 핵심 기능인 로깅을 DashIQ 모듈과 연동하기 위한 가이드와 코드 예시를 제공해 드리겠습니다.
+DashIQ 연동을 위한 로깅 구현 가이드 및 코드 예시
+PromptGate에서 발생하는 모든 AI 서비스 요청 및 응답에 대한 상세 로그는 DashIQ 모듈로 전송되어 중앙 집중식으로 관리되고 시각화될 예정입니다. 이를 통해 기업 내 AI 사용 현황에 대한 투명한 가시성을 확보하고, 보안 감사 및 분석을 위한 데이터를 제공할 수 있습니다.
+1. 로깅 데이터 구조 정의
+DashIQ로 전송될 로그 데이터는 다음과 같은 구조를 가지는 것이 좋습니다. 이는 DashIQ에서 데이터를 효율적으로 저장하고 분석하는 데 도움이 됩니다.
+json
+
+{
+    "timestamp": "2025-06-11T10:30:00Z",
+    "user_id": "user123",
+    "ip_address": "192.168.1.10",
+    "device_info": "Windows 10, Chrome",
+    "ai_service": "openai",
+    "model_name": "gpt-3.5-turbo",
+    "original_prompt": "Tell me about Project Alpha's financial status.",
+    "masked_prompt": "Tell me about [MASKED_CONFIDENTIAL]'s financial status.",
+    "masked_details": {
+        "confidential_term": ["Project Alpha"]
+    },
+    "ai_response": "I am a large language model, trained by Google.",
+    "status": "SUCCESS",
+    "filter_status": "NO_THREAT",
+    "filter_message": "N/A",
+    "block_reason": "N/A",
+    "response_filter_status": "N/A",
+    "response_filter_message": "N/A",
+    "session_id": "sess_abc123",
+    "request_duration_ms": 1500
+}
+
+2. log_ai_usage 함수 고도화
+main.py 파일의 log_ai_usage 함수를 수정하여 실제 DashIQ로 로그를 전송하는 로직을 구현합니다. MVP 단계에서는 DashIQ가 별도의 API 서버 형태로 존재한다고 가정하고 HTTP POST 요청을 통해 로그를 전송하는 방식을 사용하겠습니다. 추후에는 메시지 큐(Kafka, RabbitMQ 등)를 사용하여 더 안정적이고 확장 가능한 로깅 시스템을 구축할 수 있습니다.
+python
+
+# main.py (log_ai_usage 함수 수정)
+
+import datetime
+import json
+import httpx
+
+# DashIQ API 엔드포인트 (환경 변수에서 로드 )
+DASH_IQ_LOG_API_URL = os.getenv("DASH_IQ_LOG_API_URL", "http://localhost:8001/api/logs" )
+
+async def log_ai_usage(log_data: dict):
+    """
+    AI 사용 로그를 기록하고 DashIQ로 전송합니다.
+    """
+    # 타임스탬프 추가 (ISO 8601 형식)
+    log_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    logger.info(f"[Log] Attempting to send log to DashIQ: {log_data}")
+
+    try:
+        async with httpx.AsyncClient( ) as client:
+            response = await client.post(DASH_IQ_LOG_API_URL, json=log_data, timeout=5)
+            response.raise_for_status() # 2xx 응답이 아니면 예외 발생
+            logger.info(f"[Log] Successfully sent log to DashIQ. Response: {response.status_code}")
+    except httpx.RequestError as e:
+        logger.error(f"[Log Error] Failed to send log to DashIQ (RequestError ): {e}")
+        # DashIQ 연결 실패 시 로컬 파일에 백업 로깅 (선택 사항)
+        with open("ai_usage_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("Log data backed up to ai_usage_failed_logs.jsonl")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[Log Error] Failed to send log to DashIQ (HTTPStatusError ): {e.response.status_code} - {e.response.text}")
+        with open("ai_usage_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("Log data backed up to ai_usage_failed_logs.jsonl")
+    except Exception as e:
+        logger.error(f"[Log Error] An unexpected error occurred during logging: {e}")
+        with open("ai_usage_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("Log data backed up to ai_usage_failed_logs.jsonl")
+
+# --- process_prompt 함수 내에서 로그 데이터 구성 --- #
+# main.py (process_prompt 함수 내에서 log_data 구성 부분 수정)
+
+@app.post("/process_prompt")
+async def process_prompt(request: PromptRequest, http_request: Request ): # Request 객체 추가
+    original_prompt = request.prompt
+    user_id = request.user_id
+    ai_service = request.ai_service
+
+    # 요청 시작 시간 기록
+    start_time = datetime.datetime.now()
+
+    # ... (기존 필터링 및 마스킹 로직)
+
+    ai_response = ""
+    status = "SUCCESS"
+    filter_status = "NO_THREAT"
+    filter_message = "N/A"
+    block_reason = "N/A"
+    response_filter_status = "N/A"
+    response_filter_message = "N/A"
+
+    if not is_allowed:
+        status = "BLOCKED"
+        filter_status = "THREAT_DETECTED"
+        filter_message = filter_message # filter_prompt에서 반환된 메시지
+        block_reason = filter_message
+        ai_response = "N/A" # 차단되었으므로 응답 없음
+
+    else:
+        # ... (기존 외부 AI 서비스 요청 로직)
+        try:
+            # ... (외부 AI 서비스 요청 성공 시)
+            # ai_response = ...
+            status = "SUCCESS"
+        except httpx.HTTPStatusError as e:
+            # ... (에러 처리 )
+            status = "AI_SERVICE_ERROR"
+            ai_response = f"Error: AI service returned status {e.response.status_code}"
+            block_reason = "AI_SERVICE_ERROR"
+        except httpx.RequestError as e:
+            # ... (에러 처리 )
+            status = "NETWORK_ERROR"
+            ai_response = f"Error: Could not connect to AI service"
+            block_reason = "NETWORK_ERROR"
+        except Exception as e:
+            # ... (에러 처리)
+            status = "UNEXPECTED_ERROR"
+            ai_response = f"Error: An unexpected error occurred"
+            block_reason = "UNEXPECTED_ERROR"
+
+    # 요청 종료 시간 기록 및 소요 시간 계산
+    end_time = datetime.datetime.now()
+    request_duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+    # 5. AI 사용 로그 기록
+    log_data = {
+        "user_id": user_id,
+        "ip_address": http_request.client.host, # 클라이언트 IP 주소
+        "device_info": http_request.headers.get("User-Agent", "Unknown" ), # User-Agent 헤더
+        "ai_service": ai_service,
+        "model_name": "gpt-3.5-turbo" if ai_service == "openai" else "claude-3-opus-20240229", # 사용된 모델명
+        "original_prompt": original_prompt,
+        "masked_prompt": masked_prompt,
+        "masked_details": masked_details,
+        "ai_response": ai_response,
+        "status": status,
+        "filter_status": filter_status,
+        "filter_message": filter_message,
+        "block_reason": block_reason,
+        "response_filter_status": response_filter_status, # 응답 필터링 상태 (MVP 이후 고려)
+        "response_filter_message": response_filter_message, # 응답 필터링 메시지 (MVP 이후 고려)
+        "session_id": request.session_id, # PromptRequest 모델에 session_id 추가 필요
+        "request_duration_ms": request_duration_ms
+    }
+    asyncio.create_task(log_ai_usage(log_data)) # 비동기적으로 로그 전송
+
+    if status == "BLOCKED":
+        raise HTTPException(status_code=403, detail=f"Prompt blocked: {block_reason}")
+    elif status in ["AI_SERVICE_ERROR", "NETWORK_ERROR", "UNEXPECTED_ERROR"]:
+        raise HTTPException(status_code=500, detail=f"Failed to process request: {block_reason}")
+
+    return {"status": "success", "response": ai_response}
+
+코드 설명:
+
+    DASH_IQ_LOG_API_URL: DashIQ 로그 수신 API의 엔드포인트를 환경 변수에서 로드하도록 설정했습니다. 실제 DashIQ 서버의 주소로 변경해야 합니다.
+    log_ai_usage 함수: httpx.AsyncClient를 사용하여 비동기적으로 DashIQ API로 POST 요청을 보냅니다. json=log_data를 통해 로그 데이터를 JSON 형식으로 전송합니다.
+    에러 처리 및 백업 로깅: DashIQ API 호출 중 네트워크 오류(httpx.RequestError )나 HTTP 상태 코드 오류(httpx.HTTPStatusError )가 발생할 경우, 에러를 로깅하고 ai_usage_failed_logs.jsonl 파일에 로그 데이터를 백업하도록 구현했습니다. 이는 로그 유실을 방지하기 위한 중요한 조치입니다.
+    process_prompt 함수 수정: Request 객체를 FastAPI 엔드포인트의 인자로 추가하여 클라이언트의 IP 주소(http_request.client.host )와 User-Agent(http_request.headers.get("User-Agent" )) 정보를 로그에 포함시킬 수 있도록 했습니다.
+    로그 데이터 상세화: filter_status, filter_message, block_reason, response_filter_status, response_filter_message 등 필터링 및 차단과 관련된 상세 정보를 로그에 추가하여 DashIQ에서 더 풍부한 분석이 가능하도록 했습니다.
+    비동기 로그 전송: asyncio.create_task(log_ai_usage(log_data))를 사용하여 로그 전송을 비동기 태스크로 실행합니다. 이는 로그 전송이 PromptGate의 주 처리 흐름을 블로킹하지 않도록 하여 성능 저하를 방지합니다.
+    PromptRequest 모델 업데이트: session_id와 같은 추가적인 메타데이터를 PromptRequest 모델에 포함시켜 클라이언트로부터 받을 수 있도록 합니다.
+
+다음 단계:
+이 가이드와 코드 예시를 바탕으로 PromptGate의 로깅 기능을 구현해 보십시오. DashIQ 모듈이 아직 개발되지 않았다면, 우선 DASH_IQ_LOG_API_URL을 로컬 테스트 서버 주소로 설정하거나, log_ai_usage 함수 내에서 파일 로깅만 활성화하여 테스트할 수 있습니다.
+이 단계가 완료되면 PromptGate 개발 환경 설정 및 테스트 가이드로 넘어가겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+PromptGate의 핵심 기능(필터링, 마스킹, 로깅) 구현 가이드를 모두 제공해 드렸으니, 이제 PromptGate 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다.
+PromptGate 개발 환경 설정 및 테스트 가이드
+이 가이드는 PromptGate 모듈을 로컬 개발 환경에서 설정하고, 기본적인 기능을 테스트하는 방법을 설명합니다. 앞서 제공해 드린 Dockerfile과 main.py 코드를 기반으로 진행됩니다.
+1. 프로젝트 구조 확인
+먼저, 프로젝트 디렉토리가 다음과 같은 구조를 가지고 있는지 확인합니다.
+
+kra-aigov/
+├── Dockerfile
+├── requirements.txt
+└── main.py
+
+    Dockerfile: PromptGate 컨테이너 이미지를 빌드하기 위한 설정 파일
+    requirements.txt: PromptGate에 필요한 Python 라이브러리 목록
+    main.py: PromptGate의 핵심 로직이 구현된 FastAPI 애플리케이션 파일
+
+2. requirements.txt 업데이트
+main.py 코드에 추가된 httpx와 rebuff-sdk 라이브러리를 requirements.txt에 추가했는지 다시 한번 확인합니다. 만약 추가하지 않았다면 다음과 같이 업데이트합니다.
+text
+
+# requirements.txt
+fastapi
+uvicorn
+requests
+pydantic
+numpy
+pandas
+scikit-learn
+tensorflow # 또는 pytorch (선택 )
+rebuff-sdk
+httpx
+
+3. 환경 변수 설정
+main.py에서 사용하는 API 키와 DashIQ 엔드포인트는 환경 변수에서 로드됩니다. 컨테이너를 실행할 때 이 환경 변수들을 설정해야 합니다. 실제 키와 엔드포인트로 대체하십시오.
+
+    OPENAI_API_KEY: OpenAI API 키
+    CLAUDE_API_KEY: Claude API 키
+    REBUFF_API_KEY: Rebuff API 키
+    DASH_IQ_LOG_API_URL: DashIQ 로그 수신 API 엔드포인트 (예: http://localhost:8001/api/logs )
+
+4. Docker 이미지 빌드
+프로젝트 루트 디렉토리(kra-aigov/)에서 다음 명령어를 실행하여 PromptGate Docker 이미지를 빌드합니다.
+bash
+
+docker build -t kra-aigov-promptgate .
+
+빌드 과정에서 requirements.txt에 명시된 모든 라이브러리가 설치됩니다. 빌드 로그를 주의 깊게 살펴보고 오류가 없는지 확인하십시오.
+5. Docker 컨테이너 실행
+빌드된 이미지를 사용하여 PromptGate 컨테이너를 실행합니다. 환경 변수를 설정하고, 호스트의 포트를 컨테이너에 매핑하며, 현재 코드를 컨테이너에 마운트합니다.
+bash
+
+docker run -it --rm --gpus all \
+  -p 8000:8000 \
+  -v $(pwd):/app \
+  -e OPENAI_API_KEY="your_openai_api_key" \
+  -e CLAUDE_API_KEY="your_claude_api_key" \
+  -e REBUFF_API_KEY="your_rebuff_api_key" \
+  -e DASH_IQ_LOG_API_URL="http://localhost:8001/api/logs" \
+  kra-aigov-promptgate
+
+    --gpus all: GPU를 사용하는 경우 필수입니다. (NVIDIA Container Toolkit이 설치되어 있어야 합니다. )
+    -p 8000:8000: 호스트의 8000번 포트를 컨테이너의 8000번 포트에 연결합니다. PromptGate는 8000번 포트에서 실행됩니다.
+    -v $(pwd):/app: 현재 디렉토리의 코드를 컨테이너의 /app 디렉토리에 마운트합니다. 이를 통해 호스트에서 코드를 수정하면 컨테이너 내부에도 즉시 반영됩니다.
+    -e KEY="VALUE": 환경 변수를 설정합니다. 실제 API 키와 DashIQ 엔드포인트로 대체해야 합니다.
+
+컨테이너가 성공적으로 실행되면 uvicorn 서버가 시작되고 다음과 유사한 메시지가 출력됩니다.
+
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit )
+INFO:     Started reloader process [1] using StatReload
+INFO:     Started server process [8]...
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+
+6. PromptGate 기능 테스트
+컨테이너가 실행 중인 상태에서 다른 터미널을 열어 curl 명령어나 Postman, Insomnia와 같은 API 클라이언트를 사용하여 PromptGate의 /process_prompt 엔드포인트를 테스트할 수 있습니다.
+6.1. 정상적인 프롬프트 요청 테스트
+bash
+
+curl -X POST http://localhost:8000/process_prompt \
+-H "Content-Type: application/json" \
+-d 
+
+6.2. 민감 정보 포함 프롬프트 요청 테스트 (마스킹 확인 )
+bash
+
+curl -X POST http://localhost:8000/process_prompt \
+-H "Content-Type: application/json" \
+-d 
+
+응답에서 [MASKED_EMAIL] 또는 [MASKED_PHONE]과 같이 민감 정보가 마스킹되었는지 확인합니다. 또한, PromptGate 컨테이너의 로그([Log] Logging AI usage: ... )에서 마스킹된 정보와 masked_details를 확인합니다.
+6.3. 금지 키워드 포함 프롬프트 요청 테스트 (필터링/차단 확인)
+main.py의 filter_prompt 함수에 정의된 금지 키워드(예: "기밀")를 포함하여 요청합니다.
+bash
+
+curl -X POST http://localhost:8000/process_prompt \
+-H "Content-Type: application/json" \
+-d 
+
+이 요청은 403 Forbidden 에러와 함께 "Prompt blocked: Forbidden keyword '기밀' detected"와 유사한 메시지를 반환해야 합니다. 컨테이너 로그에서도 차단된 기록을 확인할 수 있습니다.
+6.4. Rebuff 프롬프트 인젝션 테스트 (선택 사항 )
+Rebuff가 제대로 통합되었는지 확인하기 위해 간단한 프롬프트 인젝션 공격을 시도해 볼 수 있습니다. 예를 들어:
+bash
+
+curl -X POST http://localhost:8000/process_prompt \
+-H "Content-Type: application/json" \
+-d 
+
+Rebuff가 이 패턴을 인젝션으로 탐지한다면, 요청이 차단되고 관련 로그가 기록될 것입니다.
+7. 문제 해결 팁
+
+    컨테이너 로그 확인: docker logs <컨테이너_ID_또는_이름> 명령어를 사용하여 컨테이너의 상세 로그를 확인합니다. 대부분의 오류는 여기에 기록됩니다.
+    환경 변수 확인: docker inspect <컨테이너_ID_또는_이름> 명령어로 컨테이너의 환경 변수가 올바르게 설정되었는지 확인합니다.
+    포트 충돌: netstat -tulnp | grep 8000 명령어로 호스트의 8000번 포트가 다른 프로세스에 의해 사용 중인지 확인합니다. 사용 중이라면 다른 포트로 변경하거나 해당 프로세스를 종료해야 합니다.
+    API 키 유효성: 외부 AI 서비스(OpenAI, Claude ) 및 Rebuff의 API 키가 유효한지 다시 한번 확인합니다.
+    네트워크 연결: 컨테이너 내부에서 외부 AI 서비스로의 네트워크 연결이 원활한지 확인합니다. docker exec -it <컨테이너_ID> bash로 컨테이너에 접속하여 ping google.com 등으로 테스트할 수 있습니다.
+
+이 가이드를 통해 PromptGate 개발 환경을 설정하고 기본적인 기능을 테스트해 보십시오. 이 과정에서 발생하는 모든 문제에 대해 제가 지원해 드릴 수 있습니다. PromptGate가 성공적으로 동작하는 것을 확인하면 다음 모듈인 DashIQ 개발 가이드로 넘어가겠습니다.
+
+todo. 
+
+DashIQ 모듈 개발 가이드 todo 리스트 작성 
+이제 KRA-AiGov 솔루션의 두 번째 핵심 모듈인 DashIQ 개발 가이드를 시작하겠습니다.
+DashIQ 역할 및 아키텍처 설명
+1. DashIQ의 역할
+DashIQ는 KRA-AiGov 솔루션의 핵심적인 모니터링 및 분석 도구로, 기업 내 AI 서비스 사용 현황에 대한 투명한 가시성을 제공하고, 보안 감사 및 정책 준수 여부를 확인할 수 있도록 지원합니다. PromptGate로부터 전송되는 모든 AI 사용 로그를 수집, 저장, 분석 및 시각화하는 역할을 수행합니다. 주요 역할은 다음과 같습니다.
+
+    AI 사용 현황 모니터링: 사용자, 부서, AI 서비스 종류, 시간대별 AI 사용량 등 다양한 관점에서 AI 사용 현황을 실시간으로 모니터링합니다.
+    보안 이벤트 분석: PromptGate에서 탐지된 프롬프트 인젝션 시도, 민감 정보 유출 시도, 금지 키워드 사용 등 보안 관련 이벤트를 기록하고 분석하여 잠재적인 위협을 식별합니다.
+    정책 준수 확인: 기업의 AI 사용 정책이 제대로 준수되고 있는지, 어떤 사용자가 어떤 정책을 위반했는지 등을 파악하여 정책 개선 및 교육 자료로 활용합니다.
+    감사 및 보고: AI 사용에 대한 상세한 기록을 제공하여 내부 감사 및 외부 규제 준수(예: ISMS-P)에 필요한 데이터를 제공합니다.
+    비용 분석: 외부 AI 서비스 사용량 데이터를 기반으로 비용을 분석하고, 효율적인 AI 자원 활용 방안을 모색하는 데 기여합니다.
+
+2. DashIQ의 아키텍처
+DashIQ는 PromptGate로부터 로그 데이터를 수신하고, 이를 저장 및 분석하여 웹 기반 대시보드를 통해 시각화하는 구조를 가집니다. MVP 단계에서는 다음과 같은 아키텍처를 고려할 수 있습니다.
+mermaid
+
+graph TD
+    A[PromptGate] -->|로그 전송 (HTTP POST)| B(DashIQ API 서버)
+    B -->|로그 저장| C[로그 저장소 (DB)]
+    D[관리자/사용자] -->|웹 브라우저| E(DashIQ 웹 UI)
+    E -->|데이터 요청 (API)| B
+    B -->|데이터 조회| C
+
+    subgraph DashIQ 내부 구성
+        B1[로그 수신 API 엔드포인트] --> B2[로그 유효성 검증]
+        B2 --> B3[데이터 전처리]
+        B3 --> B4[데이터 저장 모듈]
+        B4 --> C
+        B5[데이터 조회 API 엔드포인트] --> B6[데이터 조회 모듈]
+        B6 --> C
+        B7[데이터 분석/집계 모듈] --> B6
+    end
+
+    로그 수신 API 서버: PromptGate로부터 HTTP POST 요청을 통해 로그 데이터를 수신하는 역할을 합니다. FastAPI를 사용하여 구현할 수 있습니다.
+    로그 유효성 검증: 수신된 로그 데이터의 형식이 올바른지, 필수 필드가 누락되지 않았는지 등을 검증합니다.
+    데이터 전처리: 수신된 로그 데이터를 저장하기 전에 필요한 전처리(예: 타임스탬프 형식 변환, 특정 필드 파싱)를 수행합니다.
+    데이터 저장 모듈: 전처리된 로그 데이터를 영구적으로 저장합니다. MVP 단계에서는 SQLite 또는 PostgreSQL과 같은 관계형 데이터베이스를 사용할 수 있습니다. 대규모 데이터 처리가 필요해지면 Elasticsearch와 같은 NoSQL 데이터베이스나 데이터 웨어하우스를 고려할 수 있습니다.
+    데이터 조회 API 엔드포인트: DashIQ 웹 UI나 다른 분석 도구에서 로그 데이터를 조회할 수 있도록 API를 제공합니다.
+    데이터 조회 모듈: 데이터 저장소에서 필요한 데이터를 조회하고, 필터링, 정렬, 페이징 등의 기능을 제공합니다.
+    데이터 분석/집계 모듈: 조회된 로그 데이터를 기반으로 통계, 트렌드, 요약 정보 등을 생성합니다. (MVP 이후 고도화)
+    DashIQ 웹 UI: 관리자나 사용자가 AI 사용 현황을 시각적으로 파악할 수 있도록 대시보드를 제공합니다. 초기에는 간단한 HTML/CSS/JavaScript 또는 경량 프레임워크를 사용하여 구현할 수 있습니다.
+
+DashIQ는 PromptGate와 연동하여 기업 내 AI 사용에 대한 완전한 가시성과 통제력을 제공하는 데 필수적인 모듈입니다. 다음 단계에서는 DashIQ의 핵심 기능(로그 수집, 저장, 시각화)을 더 구체적으로 정의하고, 이를 구현하기 위한 기본적인 FastAPI 코드 구조(로그 수신 API)를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+DashIQ의 역할과 아키텍처에 대한 설명을 드렸으니, 이제 DashIQ의 핵심 기능들을 정의하고, 이를 구현하기 위한 기본적인 FastAPI 코드 구조(로그 수신 API)를 제공해 드리겠습니다.
+DashIQ 핵심 기능 정의
+DashIQ의 MVP(Minimum Viable Product) 단계에서 구현할 핵심 기능은 크게 세 가지입니다: 로그 수집, 로그 저장, 그리고 로그 시각화입니다.
+1. 로그 수집 (Log Collection)
+
+    목표: PromptGate 및 향후 다른 KRA-AiGov 모듈에서 발생하는 모든 AI 사용 로그를 안정적으로 수신합니다.
+    세부 기능:
+        HTTP API 엔드포인트: PromptGate가 HTTP POST 요청을 통해 로그 데이터를 전송할 수 있는 RESTful API 엔드포인트를 제공합니다.
+        데이터 유효성 검증: 수신된 로그 데이터의 스키마(데이터 구조)를 검증하여 올바른 형식의 데이터만 처리하도록 합니다.
+        비동기 처리: 대량의 로그 데이터가 동시에 유입될 경우에도 서비스가 지연되지 않도록 비동기적으로 로그를 수신하고 처리합니다.
+
+2. 로그 저장 (Log Storage)
+
+    목표: 수신된 로그 데이터를 영구적으로 저장하고, 효율적인 검색 및 분석을 위해 구조화합니다.
+    세부 기능:
+        데이터베이스 선택: MVP 단계에서는 설치 및 관리가 용이한 경량 관계형 데이터베이스(예: SQLite 또는 PostgreSQL)를 사용합니다. 추후 데이터 규모가 커지면 확장성 있는 솔루션(예: Elasticsearch, MongoDB)으로 전환을 고려합니다.
+        스키마 설계: 로그 데이터의 각 필드(사용자 ID, 프롬프트, 응답, 타임스탬프, 필터링 결과 등)를 데이터베이스 테이블에 맞게 정의합니다.
+        인덱싱: 자주 조회되는 필드(예: user_id, timestamp, ai_service, status)에 인덱스를 설정하여 검색 성능을 최적화합니다.
+
+3. 로그 시각화 (Log Visualization)
+
+    목표: 저장된 로그 데이터를 관리자나 사용자가 쉽게 이해하고 분석할 수 있도록 시각적인 대시보드를 제공합니다.
+    세부 기능:
+        웹 기반 대시보드: 웹 브라우저를 통해 접근 가능한 사용자 인터페이스를 제공합니다.
+        주요 지표 표시: 총 AI 사용량, 사용자별/부서별 사용량, 시간대별 사용 트렌드, 차단된 요청 수, 민감 정보 마스킹 이력 등 핵심 지표를 그래프, 차트 형태로 시각화합니다.
+        로그 검색 및 필터링: 특정 사용자, AI 서비스, 기간, 상태 등으로 로그를 검색하고 필터링할 수 있는 기능을 제공합니다.
+        상세 로그 조회: 특정 로그 항목을 클릭하면 해당 로그의 상세 정보를 팝업 또는 별도 페이지로 보여줍니다.
+
+DashIQ 기본 FastAPI 코드 구조 제공 (로그 수신 API)
+DashIQ의 로그 수집 기능을 구현하기 위한 FastAPI 애플리케이션의 기본 구조입니다. 이 코드는 PromptGate로부터 로그 데이터를 수신하고, 이를 데이터베이스에 저장하는 역할을 합니다.
+python
+
+# main.py (DashIQ)
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
+import datetime
+import logging
+import sqlite3
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# --- 데이터베이스 설정 --- #
+DATABASE_FILE = "./aigov_logs.db"
+
+def init_db():
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            ip_address TEXT,
+            device_info TEXT,
+            ai_service TEXT NOT NULL,
+            model_name TEXT,
+            original_prompt TEXT NOT NULL,
+            masked_prompt TEXT,
+            masked_details TEXT, -- JSON 문자열로 저장
+            ai_response TEXT,
+            status TEXT NOT NULL,
+            filter_status TEXT,
+            filter_message TEXT,
+            block_reason TEXT,
+            response_filter_status TEXT,
+            response_filter_message TEXT,
+            session_id TEXT,
+            request_duration_ms INTEGER
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# 데이터베이스 초기화
+init_db()
+
+# --- 데이터 모델 정의 --- #
+class LogEntry(BaseModel):
+    timestamp: str
+    user_id: str
+    ip_address: Optional[str] = None
+    device_info: Optional[str] = None
+    ai_service: str
+    model_name: Optional[str] = None
+    original_prompt: str
+    masked_prompt: Optional[str] = None
+    masked_details: Optional[Dict[str, Any]] = None
+    ai_response: Optional[str] = None
+    status: str
+    filter_status: Optional[str] = None
+    filter_message: Optional[str] = None
+    block_reason: Optional[str] = None
+    response_filter_status: Optional[str] = None
+    response_filter_message: Optional[str] = None
+    session_id: Optional[str] = None
+    request_duration_ms: Optional[int] = None
+
+# --- FastAPI 애플리케이션 인스턴스 생성 --- #
+app = FastAPI(title="KRA-AiGov DashIQ Log Receiver", version="0.1.0")
+
+# --- API 엔드포인트 정의 --- #
+@app.post("/api/logs")
+async def receive_log(log_entry: LogEntry):
+    logger.info(f"Received log from {log_entry.user_id} for {log_entry.ai_service}")
+
+    try:
+        conn = sqlite3.connect(DATABASE_FILE)
+        cursor = conn.cursor()
+
+        # masked_details는 JSON 문자열로 변환하여 저장
+        masked_details_json = json.dumps(log_entry.masked_details) if log_entry.masked_details else None
+
+        cursor.execute("""
+            INSERT INTO ai_logs (
+                timestamp, user_id, ip_address, device_info, ai_service, model_name,
+                original_prompt, masked_prompt, masked_details, ai_response, status,
+                filter_status, filter_message, block_reason, response_filter_status,
+                response_filter_message, session_id, request_duration_ms
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            log_entry.timestamp, log_entry.user_id, log_entry.ip_address, log_entry.device_info,
+            log_entry.ai_service, log_entry.model_name, log_entry.original_prompt,
+            log_entry.masked_prompt, masked_details_json, log_entry.ai_response, log_entry.status,
+            log_entry.filter_status, log_entry.filter_message, log_entry.block_reason,
+            log_entry.response_filter_status, log_entry.response_filter_message,
+            log_entry.session_id, log_entry.request_duration_ms
+        ))
+        conn.commit()
+        conn.close()
+        logger.info("Log successfully saved to database.")
+        return {"message": "Log received and saved successfully"}
+    except Exception as e:
+        logger.error(f"Failed to save log to database: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save log: {e}")
+
+# --- 애플리케이션 실행 (개발용) --- #
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+
+코드 설명:
+
+    DATABASE_FILE: SQLite 데이터베이스 파일의 경로를 정의합니다. (./aigov_logs.db)
+    init_db() 함수: 애플리케이션 시작 시 SQLite 데이터베이스 파일이 없으면 생성하고, ai_logs 테이블을 생성합니다. 이 테이블은 PromptGate에서 전송하는 로그 데이터의 모든 필드를 포함하도록 설계되었습니다.
+    LogEntry: PromptGate에서 정의했던 로그 데이터 구조와 동일하게 Pydantic BaseModel로 정의했습니다. Optional을 사용하여 선택적 필드를 지정하고, Dict[str, Any]를 사용하여 masked_details와 같은 유연한 JSON 데이터를 처리할 수 있도록 했습니다.
+    @app.post("/api/logs"): PromptGate가 로그를 전송할 /api/logs 엔드포인트를 정의합니다. log_entry: LogEntry를 통해 수신되는 JSON 데이터가 자동으로 LogEntry 모델로 파싱되고 유효성 검증됩니다.
+    로그 저장 로직: 수신된 log_entry 객체의 데이터를 SQLite 데이터베이스의 ai_logs 테이블에 삽입합니다. masked_details와 같은 딕셔너리 형태의 데이터는 json.dumps()를 사용하여 JSON 문자열로 변환하여 저장합니다.
+    에러 처리: 데이터베이스 저장 중 발생할 수 있는 예외를 처리하고, 500 Internal Server Error를 반환하도록 했습니다.
+    애플리케이션 실행: if __name__ == "__main__": 블록을 통해 uvicorn을 사용하여 개발 모드에서 애플리케이션을 실행할 수 있습니다. DashIQ는 8001번 포트에서 실행되도록 설정했습니다.
+
+다음 단계:
+이 가이드와 코드 예시를 바탕으로 DashIQ의 로그 수신 API를 구현해 보십시오. 이 코드를 main.py 파일로 저장하고, requirements.txt에 fastapi, uvicorn을 추가한 후 Docker 컨테이너에서 실행할 수 있습니다. PromptGate에서 DASH_IQ_LOG_API_URL을 http://localhost:8001/api/logs로 설정하고 테스트해 볼 수 있습니다.
+다음 단계에서는 로그 저장소 선택 및 연동 가이드(PostgreSQL )와 데이터 시각화 구현 가이드(간단한 웹 UI)를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+DashIQ의 로그 수신 API 구현 가이드를 제공해 드렸으니, 이제 로그 저장소 선택 및 연동 가이드에 대해 설명해 드리겠습니다. 앞서 제공된 코드에서는 SQLite를 기본으로 사용했지만, 실제 운영 환경에서는 더 강력하고 확장성 있는 데이터베이스가 필요할 수 있습니다. 여기서는 PostgreSQL을 DashIQ의 로그 저장소로 사용하는 방법을 중점적으로 다루겠습니다.
+로그 저장소 선택 및 연동 가이드 (PostgreSQL)
+1. SQLite vs. PostgreSQL 선택 가이드
+
+    SQLite:
+        장점: 설정이 매우 간단하고 별도의 서버 프로세스가 필요 없어 개발 초기 단계나 소규모 애플리케이션에 적합합니다. 파일 기반으로 동작하여 배포가 용이합니다.
+        단점: 동시성 제약이 있어 여러 프로세스나 스레드에서 동시에 쓰기 작업을 수행하기 어렵습니다. 대규모 데이터 처리나 고성능이 요구되는 환경에는 적합하지 않습니다.
+    PostgreSQL:
+        장점: 강력한 관계형 데이터베이스 관리 시스템(RDBMS)으로, 높은 동시성, 데이터 무결성, 복잡한 쿼리 처리 능력을 제공합니다. 대규모 데이터와 트랜잭션을 안정적으로 처리할 수 있으며, 다양한 고급 기능을 지원합니다.
+        단점: 별도의 서버 설치 및 설정이 필요하며, 관리가 SQLite보다 복잡합니다.
+
+결론: MVP 단계에서는 SQLite로 빠르게 시작하고, 데이터 규모가 커지거나 동시성 문제가 발생할 경우 PostgreSQL로 전환하는 전략을 권장합니다. 여기서는 PostgreSQL로의 전환을 위한 가이드를 제공합니다.
+2. PostgreSQL 설치 및 설정 (로컬 개발 환경)
+Docker 컨테이너 환경에서 PostgreSQL을 실행하는 것이 가장 편리합니다. docker-compose를 사용하여 DashIQ와 PostgreSQL을 함께 관리할 수 있습니다.
+2.1. docker-compose.yml 파일 생성
+프로젝트 루트 디렉토리에 docker-compose.yml 파일을 생성합니다.
+yaml
+
+# docker-compose.yml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: aigov_logs
+      POSTGRES_USER: aigov_user
+      POSTGRES_PASSWORD: aigov_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  dashiq:
+    build: .
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://aigov_user:aigov_password@db:5432/aigov_logs
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+
+    db 서비스: PostgreSQL 13 이미지를 사용합니다. 환경 변수를 통해 데이터베이스 이름, 사용자, 비밀번호를 설정합니다. db_data 볼륨을 사용하여 데이터 영속성을 확보합니다.
+    dashiq 서비스: 현재 디렉토리의 Dockerfile을 사용하여 이미지를 빌드합니다. DATABASE_URL 환경 변수를 통해 PostgreSQL 연결 정보를 DashIQ 애플리케이션에 전달합니다. depends_on: - db를 통해 db 서비스가 먼저 시작되도록 합니다.
+
+2.2. requirements.txt 업데이트
+PostgreSQL 데이터베이스에 연결하기 위한 Python 라이브러리인 psycopg2-binary와 SQLAlchemy ORM을 사용하기 위한 SQLAlchemy, 그리고 Pydantic과 SQLAlchemy를 함께 사용하기 위한 sqlmodel을 requirements.txt에 추가합니다.
+text
+
+# requirements.txt 에 추가
+psycopg2-binary
+SQLAlchemy
+sqlmodel
+
+2.3. DashIQ main.py 코드 수정 (PostgreSQL 연동)
+main.py 파일을 수정하여 SQLite 대신 PostgreSQL에 연결하고 데이터를 저장하도록 변경합니다. 여기서는 SQLModel을 사용하여 ORM(Object-Relational Mapping) 방식으로 데이터베이스를 다루는 예시를 제공합니다. SQLModel은 Pydantic과 SQLAlchemy를 결합하여 데이터 모델과 데이터베이스 스키마를 동시에 정의할 수 있게 해줍니다.
+python
+
+# main.py (DashIQ - PostgreSQL 연동)
+
+from fastapi import FastAPI, HTTPException
+from typing import Optional, List, Dict, Any
+import datetime
+import logging
+import json
+
+from sqlmodel import Field, SQLModel, create_engine, Session
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# --- 데이터베이스 설정 --- #
+# docker-compose.yml 에서 설정한 DATABASE_URL 환경 변수 사용
+DATABASE_URL = "postgresql://aigov_user:aigov_password@db:5432/aigov_logs"
+
+engine = create_engine(DATABASE_URL, echo=True) # echo=True 는 SQL 쿼리를 로깅하여 디버깅에 유용
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+# --- 데이터 모델 정의 (SQLModel 사용) --- #
+class AILog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    timestamp: datetime.datetime = Field(default_factory=datetime.datetime.utcnow, nullable=False)
+    user_id: str = Field(index=True, nullable=False)
+    ip_address: Optional[str] = None
+    device_info: Optional[str] = None
+    ai_service: str = Field(index=True, nullable=False)
+    model_name: Optional[str] = None
+    original_prompt: str = Field(nullable=False)
+    masked_prompt: Optional[str] = None
+    # masked_details는 JSONB 타입으로 저장 (PostgreSQL 지원)
+    masked_details: Optional[Dict[str, Any]] = Field(default_factory=dict, sa_column=Field(sa.Column(sa.JSON))) # SQLAlchemy JSON 타입 사용
+    ai_response: Optional[str] = None
+    status: str = Field(nullable=False)
+    filter_status: Optional[str] = None
+    filter_message: Optional[str] = None
+    block_reason: Optional[str] = None
+    response_filter_status: Optional[str] = None
+    response_filter_message: Optional[str] = None
+    session_id: Optional[str] = Field(index=True, default=None)
+    request_duration_ms: Optional[int] = None
+
+# --- FastAPI 애플리케이션 인스턴스 생성 --- #
+app = FastAPI(title="KRA-AiGov DashIQ Log Receiver", version="0.1.0")
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+
+# --- API 엔드포인트 정의 --- #
+@app.post("/api/logs")
+async def receive_log(log_entry: AILog):
+    logger.info(f"Received log from {log_entry.user_id} for {log_entry.ai_service}")
+
+    with Session(engine) as session:
+        try:
+            session.add(log_entry)
+            session.commit()
+            session.refresh(log_entry)
+            logger.info("Log successfully saved to database.")
+            return {"message": "Log received and saved successfully", "log_id": log_entry.id}
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to save log to database: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save log: {e}")
+
+# --- 애플리케이션 실행 (개발용) --- #
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+
+코드 설명:
+
+    SQLModel: SQLModel은 Pydantic BaseModel과 SQLAlchemy DeclarativeBase를 상속받아 데이터 유효성 검사와 ORM 기능을 동시에 제공합니다. table=True를 설정하여 이 모델이 데이터베이스 테이블에 매핑됨을 나타냅니다.
+    Field: SQLModel의 Field 함수를 사용하여 각 컬럼의 속성(기본값, Primary Key, 인덱스, Null 허용 여부 등)을 정의합니다.
+    masked_details JSONB 타입: PostgreSQL은 JSONB 타입을 지원하여 JSON 데이터를 효율적으로 저장하고 쿼리할 수 있습니다. sa_column=Field(sa.Column(sa.JSON))을 사용하여 masked_details 필드를 JSON 타입으로 매핑합니다. (이를 위해 import sqlalchemy as sa가 필요합니다.)
+    create_engine: DATABASE_URL을 사용하여 SQLAlchemy 엔진을 생성합니다. echo=True는 실행되는 모든 SQL 쿼리를 콘솔에 출력하여 디버깅에 유용합니다.
+    create_db_and_tables(): SQLModel.metadata.create_all(engine)을 호출하여 AILog 모델에 정의된 스키마를 기반으로 데이터베이스 테이블을 생성합니다. 이 함수는 FastAPI 애플리케이션 시작 시(@app.on_event("startup")) 한 번만 실행되도록 설정합니다.
+    receive_log 함수 수정: Session(engine)을 사용하여 데이터베이스 세션을 생성하고, session.add(log_entry)로 로그 객체를 추가한 후 session.commit()으로 변경 사항을 커밋합니다. session.refresh(log_entry)는 데이터베이스에 저장된 후 생성된 id와 같은 정보를 객체에 다시 로드합니다.
+
+3. Docker Compose를 이용한 실행
+docker-compose.yml과 수정된 main.py, requirements.txt가 준비되었다면, 프로젝트 루트 디렉토리에서 다음 명령어를 실행하여 DashIQ와 PostgreSQL을 함께 실행할 수 있습니다.
+bash
+
+docker-compose up --build
+
+    --build: dashiq 서비스의 Dockerfile이 변경되었으므로 이미지를 다시 빌드합니다.
+
+컨테이너가 성공적으로 실행되면, PromptGate에서 DASH_IQ_LOG_API_URL을 http://dashiq:8001/api/logs로 설정하고 로그를 전송하여 PostgreSQL에 저장되는지 테스트할 수 있습니다. (Docker Compose 네트워크 내에서는 서비스 이름으로 접근 가능 )
+4. 데이터베이스 접속 및 확인
+PostgreSQL 컨테이너에 접속하여 데이터가 제대로 저장되었는지 확인할 수 있습니다.
+bash
+
+docker exec -it aigov-dashiq-db-1 psql -U aigov_user aigov_logs
+
+psql 프롬프트에서 다음 쿼리를 실행하여 저장된 로그를 확인합니다.
+sql
+
+SELECT * FROM ai_logs;
+
+이 가이드를 통해 DashIQ의 로그 저장소를 PostgreSQL로 전환하고 연동하는 방법을 이해하셨기를 바랍니다. 다음 단계에서는 DashIQ의 로그 시각화 기능을 위한 간단한 웹 UI 구현 가이드를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+DashIQ의 로그 저장소 연동 가이드를 제공해 드렸으니, 이제 DashIQ의 로그 시각화를 위한 간단한 웹 UI 구현 가이드를 제공해 드리겠습니다. 이 가이드는 FastAPI 백엔드에 데이터를 조회하는 API를 추가하고, HTML, CSS, JavaScript를 사용하여 기본적인 대시보드를 구성하는 방법을 설명합니다.
+데이터 시각화 구현 가이드 (간단한 웹 UI)
+DashIQ의 웹 UI는 관리자가 AI 사용 현황을 한눈에 파악하고, 필요한 로그를 검색 및 필터링할 수 있도록 돕는 역할을 합니다. MVP 단계에서는 복잡한 프레임워크 대신 순수 HTML, CSS, JavaScript를 사용하여 빠르고 가볍게 구현하는 것을 목표로 합니다.
+1. DashIQ 백엔드 API 확장 (로그 조회 기능 추가)
+DashIQ의 main.py 파일에 저장된 로그 데이터를 조회할 수 있는 API 엔드포인트를 추가합니다. 이 API는 웹 UI에서 데이터를 가져오는 데 사용됩니다.
+python
+
+# main.py (DashIQ - 기존 코드에 추가)
+
+from typing import List
+from sqlmodel import select
+
+# ... (기존 import 및 코드)
+
+# --- API 엔드포인트 정의 --- #
+# ... (기존 @app.post("/api/logs"))
+
+@app.get("/api/logs", response_model=List[AILog])
+async def get_logs(
+    skip: int = 0,
+    limit: int = 100,
+    user_id: Optional[str] = None,
+    ai_service: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None
+):
+    """
+    저장된 AI 사용 로그를 조회합니다.
+    필터링, 페이징 기능을 제공합니다.
+    """
+    with Session(engine) as session:
+        query = select(AILog)
+
+        if user_id:
+            query = query.where(AILog.user_id == user_id)
+        if ai_service:
+            query = query.where(AILog.ai_service == ai_service)
+        if status:
+            query = query.where(AILog.status == status)
+        if start_date:
+            query = query.where(AILog.timestamp >= start_date)
+        if end_date:
+            query = query.where(AILog.timestamp <= end_date)
+
+        logs = session.exec(query.offset(skip).limit(limit)).all()
+        return logs
+
+@app.get("/api/logs/summary")
+async def get_logs_summary():
+    """
+    AI 사용 로그 요약 정보를 제공합니다.
+    """
+    with Session(engine) as session:
+        # 총 로그 수
+        total_logs = session.exec(select(AILog)).count()
+
+        # 차단된 로그 수
+        blocked_logs = session.exec(select(AILog).where(AILog.status == "BLOCKED")).count()
+
+        # AI 서비스별 사용량 (예시)
+        ai_service_usage = session.exec(
+            select(AILog.ai_service, func.count(AILog.id)).group_by(AILog.ai_service)
+        ).all()
+        ai_service_usage_dict = {service: count for service, count in ai_service_usage}
+
+        return {
+            "total_logs": total_logs,
+            "blocked_logs": blocked_logs,
+            "ai_service_usage": ai_service_usage_dict
+        }
+
+# 정적 파일 서빙을 위한 설정 추가
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 루트 경로 ("/") 요청 시 index.html 서빙
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+코드 설명:
+
+    get_logs 엔드포인트: /api/logs 경로로 GET 요청을 받습니다. skip, limit을 통해 페이징을 지원하고, user_id, ai_service, status, start_date, end_date를 통해 로그를 필터링할 수 있습니다. response_model=List[AILog]를 통해 응답 데이터의 유효성을 검증하고 자동 문서화를 지원합니다.
+    get_logs_summary 엔드포인트: /api/logs/summary 경로로 GET 요청을 받습니다. 총 로그 수, 차단된 로그 수, AI 서비스별 사용량 등 대시보드에 표시할 요약 정보를 제공합니다. (SQLAlchemy func.count 사용을 위해 from sqlalchemy import func 추가 필요)
+    정적 파일 서빙: StaticFiles를 사용하여 static 디렉토리의 정적 파일(CSS, JS)을 서빙합니다.
+    루트 경로 서빙: / 경로로 요청이 들어오면 templates 디렉토리의 index.html 파일을 서빙하도록 설정합니다. 이를 위해 Jinja2Templates를 사용합니다. (pip install jinja2 필요)
+
+2. 프론트엔드 (HTML, CSS, JavaScript) 구현
+프로젝트 루트 디렉토리에 static과 templates 디렉토리를 생성하고, 각각 static/style.css, static/script.js, templates/index.html 파일을 생성합니다.
+2.1. templates/index.html
+html
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRA-AiGov DashIQ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>KRA-AiGov DashIQ - AI 사용 현황 대시보드</h1>
+
+        <div class="summary-cards">
+            <div class="card">
+                <h3>총 AI 요청 수</h3>
+                <p id="total-logs">로딩 중...</p>
+            </div>
+            <div class="card">
+                <h3>차단된 요청 수</h3>
+                <p id="blocked-logs">로딩 중...</p>
+            </div>
+            <div class="card">
+                <h3>AI 서비스별 사용량</h3>
+                <ul id="ai-service-usage">로딩 중...</ul>
+            </div>
+        </div>
+
+        <h2>로그 목록</h2>
+        <div class="filters">
+            <input type="text" id="user-id-filter" placeholder="사용자 ID">
+            <select id="ai-service-filter">
+                <option value="">AI 서비스 선택</option>
+                <option value="openai">OpenAI</option>
+                <option value="claude">Claude</option>
+            </select>
+            <select id="status-filter">
+                <option value="">상태 선택</option>
+                <option value="SUCCESS">성공</option>
+                <option value="BLOCKED">차단됨</option>
+                <option value="AI_SERVICE_ERROR">AI 서비스 오류</option>
+            </select>
+            <input type="date" id="start-date-filter">
+            <input type="date" id="end-date-filter">
+            <button onclick="fetchLogs()">필터 적용</button>
+        </div>
+
+        <table id="log-table">
+            <thead>
+                <tr>
+                    <th>시간</th>
+                    <th>사용자 ID</th>
+                    <th>AI 서비스</th>
+                    <th>원본 프롬프트</th>
+                    <th>마스킹된 프롬프트</th>
+                    <th>상태</th>
+                    <th>차단 사유</th>
+                    <th>상세 보기</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 로그 데이터가 여기에 로드됩니다 -->
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            <button onclick="prevPage()">이전</button>
+            <span id="current-page">1</span> / <span id="total-pages">?</span>
+            <button onclick="nextPage()">다음</button>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
+2.2. static/style.css
+css
+
+/* static/style.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.summary-cards {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+
+.card {
+    background-color: #ecf0f1;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    width: 30%;
+    min-width: 280px;
+    margin: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card h3 {
+    color: #34495e;
+    margin-top: 0;
+}
+
+.card p, .card ul {
+    font-size: 2em;
+    font-weight: bold;
+    color: #2980b9;
+    margin: 10px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.card ul li {
+    font-size: 1em;
+    font-weight: normal;
+    color: #555;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.filters input, .filters select, .filters button {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.filters button {
+    background-color: #3498db;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.filters button:hover {
+    background-color: #2980b9;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #fff;
+}
+
+table th, table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+table th {
+    background-color: #f2f2f2;
+    color: #333;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tbody tr:hover {
+    background-color: #e9e9e9;
+}
+
+.pagination {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.pagination button {
+    padding: 8px 15px;
+    margin: 0 5px;
+    border: 1px solid #3498db;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #3498db;
+    cursor: pointer;
+}
+
+.pagination button:disabled {
+    border-color: #ccc;
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+.pagination span {
+    font-weight: bold;
+    margin: 0 10px;
+}
+
+/* Modal for detailed log view */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto; /* 15% from the top and centered */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Could be more or less, depending on screen size */
+    border-radius: 8px;
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content pre {
+    background-color: #eee;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+2.3. static/script.js
+javascript
+
+// static/script.js
+
+const API_BASE_URL = 
+
+let currentPage = 1;
+const logsPerPage = 10;
+let totalLogsCount = 0;
+
+document.addEventListener("DOMContentLoaded", () => {
+    fetchSummary();
+    fetchLogs();
+});
+
+async function fetchSummary() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/logs/summary`);
+        const summary = await response.json();
+
+        document.getElementById("total-logs").textContent = summary.total_logs;
+        document.getElementById("blocked-logs").textContent = summary.blocked_logs;
+
+        const aiServiceUsageList = document.getElementById("ai-service-usage");
+        aiServiceUsageList.innerHTML = "";
+        for (const service in summary.ai_service_usage) {
+            const listItem = document.createElement("li");
+            listItem.textContent = `${service}: ${summary.ai_service_usage[service]}`;
+            aiServiceUsageList.appendChild(listItem);
+        }
+    } catch (error) {
+        console.error("Error fetching summary:", error);
+        document.getElementById("total-logs").textContent = "에러";
+        document.getElementById("blocked-logs").textContent = "에러";
+        document.getElementById("ai-service-usage").textContent = "에러";
+    }
+}
+
+async function fetchLogs() {
+    const userId = document.getElementById("user-id-filter").value;
+    const aiService = document.getElementById("ai-service-filter").value;
+    const status = document.getElementById("status-filter").value;
+    const startDate = document.getElementById("start-date-filter").value;
+    const endDate = document.getElementById("end-date-filter").value;
+
+    const queryParams = new URLSearchParams({
+        skip: (currentPage - 1) * logsPerPage,
+        limit: logsPerPage
+    });
+
+    if (userId) queryParams.append("user_id", userId);
+    if (aiService) queryParams.append("ai_service", aiService);
+    if (status) queryParams.append("status", status);
+    if (startDate) queryParams.append("start_date", `${startDate}T00:00:00Z`);
+    if (endDate) queryParams.append("end_date", `${endDate}T23:59:59Z`);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/logs?${queryParams.toString()}`);
+        const logs = await response.json();
+
+        // 총 로그 수를 가져오는 별도의 API가 있다면 사용 (현재는 get_logs_summary에서 가져옴)
+        // 여기서는 간단히 전체 페이지 계산을 위해 임시로 totalLogsCount를 업데이트
+        // 실제 구현에서는 get_logs API가 total_count를 반환하도록 수정하는 것이 좋습니다.
+        if (logs.length > 0) {
+            // 임시로 총 로그 수를 추정 (정확하지 않을 수 있음)
+            totalLogsCount = (currentPage - 1) * logsPerPage + logs.length + (logs.length === logsPerPage ? logsPerPage : 0);
+        } else if (currentPage === 1) {
+            totalLogsCount = 0;
+        }
+
+        const totalPages = Math.ceil(totalLogsCount / logsPerPage);
+        document.getElementById("current-page").textContent = currentPage;
+        document.getElementById("total-pages").textContent = totalPages > 0 ? totalPages : 1;
+
+        document.querySelector(".pagination button:first-child").disabled = currentPage === 1;
+        document.querySelector(".pagination button:last-child").disabled = currentPage >= totalPages;
+
+        const tableBody = document.querySelector("#log-table tbody");
+        tableBody.innerHTML = ""; // 기존 내용 지우기
+
+        if (logs.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center;">로그가 없습니다.</td></tr>`;
+            return;
+        }
+
+        logs.forEach(log => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = new Date(log.timestamp).toLocaleString();
+            row.insertCell().textContent = log.user_id;
+            row.insertCell().textContent = log.ai_service;
+            row.insertCell().textContent = log.original_prompt.substring(0, 50) + (log.original_prompt.length > 50 ? "..." : "");
+            row.insertCell().textContent = log.masked_prompt ? (log.masked_prompt.substring(0, 50) + (log.masked_prompt.length > 50 ? "..." : "")) : "N/A";
+            row.insertCell().textContent = log.status;
+            row.insertCell().textContent = log.block_reason || "N/A";
+            
+            const detailCell = row.insertCell();
+            const detailButton = document.createElement("button");
+            detailButton.textContent = "상세 보기";
+            detailButton.onclick = () => showLogDetail(log);
+            detailCell.appendChild(detailButton);
+        });
+    } catch (error) {
+        console.error("Error fetching logs:", error);
+        document.querySelector("#log-table tbody").innerHTML = `<tr><td colspan="8" style="color: red; text-align: center;">로그를 불러오는 데 실패했습니다.</td></tr>`;
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        fetchLogs();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(totalLogsCount / logsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        fetchLogs();
+    }
+}
+
+function showLogDetail(log) {
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>로그 상세 정보</h2>
+            <pre>${JSON.stringify(log, null, 2)}</pre>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeButton = modal.querySelector(".close-button");
+    closeButton.onclick = () => {
+        modal.style.display = "none";
+        modal.remove();
+    };
+
+    modal.style.display = "block";
+
+    // Close when clicking outside the modal content
+    window.onclick = (event) => {
+        if (event.target == modal) {
+            modal.style.display = "none";
+            modal.remove();
+        }
+    };
+}
+
+3. Docker Compose 파일 업데이트
+docker-compose.yml 파일에 Jinja2 설치를 위한 dashiq 서비스의 Dockerfile 빌드 부분을 수정하고, templates 디렉토리를 컨테이너에 마운트하도록 volumes를 추가합니다.
+yaml
+
+# docker-compose.yml (dashiq 서비스 부분 수정)
+
+services:
+  dashiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://aigov_user:aigov_password@db:5432/aigov_logs
+    volumes:
+      - ./static:/app/static
+      - ./templates:/app/templates
+      - ./main.py:/app/main.py # main.py도 마운트하여 실시간 변경 반영
+    depends_on:
+      - db
+
+4. Dockerfile 업데이트
+Dockerfile에 jinja2 설치를 추가합니다.
+dockerfile
+
+# Dockerfile (DashIQ)
+
+# ... (기존 코드)
+
+# requirements.txt 복사 및 Python 라이브러리 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Jinja2 설치 (템플릿 엔진)
+RUN pip install jinja2
+
+# 애플리케이션 코드 복사 (volumes로 마운트되므로 필요 없을 수 있으나, 빌드 시 포함)
+COPY . .
+
+# ... (기존 코드)
+
+5. 실행 및 테스트
+모든 파일이 준비되면, 프로젝트 루트 디렉토리에서 다음 명령어를 실행하여 DashIQ를 실행합니다.
+bash
+
+docker-compose up --build
+
+웹 브라우저에서 http://localhost:8001에 접속하면 DashIQ 대시보드를 확인할 수 있습니다. PromptGate를 통해 로그를 전송하면 대시보드에 실시간으로 반영되는 것을 볼 수 있습니다.
+주의사항:
+
+    보안: 이 예시는 개발 및 테스트를 위한 간단한 UI입니다. 실제 운영 환경에서는 사용자 인증, 권한 관리, 보안 헤더 설정 등 추가적인 보안 조치가 필수적입니다.
+    데이터 시각화 라이브러리: 더 복잡하고 인터랙티브한 차트가 필요하다면 Chart.js, D3.js, Plotly.js 등 전문적인 JavaScript 시각화 라이브러리를 통합할 수 있습니다.
+    프론트엔드 프레임워크: 대시보드의 규모가 커지면 React, Vue, Angular와 같은 프론트엔드 프레임워크를 사용하는 것을 고려할 수 있습니다.
+
+이 가이드를 통해 DashIQ의 웹 UI를 구현하고 AI 사용 현황을 시각적으로 파악할 수 있을 것입니다. 다음 단계에서는 DashIQ 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+DashIQ의 핵심 기능 구현 가이드를 모두 제공해 드렸으니, 이제 DashIQ 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다.
+DashIQ 개발 환경 설정 및 테스트 가이드
+이 가이드는 DashIQ 모듈을 로컬 개발 환경에서 설정하고, 기본적인 기능을 테스트하는 방법을 설명합니다. 앞서 제공해 드린 docker-compose.yml, main.py, requirements.txt, static/, templates/ 파일을 기반으로 진행됩니다.
+1. 프로젝트 구조 확인
+먼저, DashIQ 프로젝트 디렉토리가 다음과 같은 구조를 가지고 있는지 확인합니다.
+
+kra-aigov-dashiq/
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+├── main.py
+├── static/
+│   └── style.css
+│   └── script.js
+└── templates/
+    └── index.html
+
+    docker-compose.yml: DashIQ 애플리케이션과 PostgreSQL 데이터베이스를 함께 실행하기 위한 설정 파일
+    Dockerfile: DashIQ 컨테이너 이미지를 빌드하기 위한 설정 파일
+    requirements.txt: DashIQ에 필요한 Python 라이브러리 목록
+    main.py: DashIQ의 핵심 로직(로그 수신 API, 로그 조회 API, 요약 API)이 구현된 FastAPI 애플리케이션 파일
+    static/: CSS, JavaScript 등 정적 웹 자산 파일
+    templates/: HTML 템플릿 파일
+
+2. requirements.txt 업데이트 확인
+main.py 코드에 추가된 psycopg2-binary, SQLAlchemy, sqlmodel, jinja2 라이브러리가 requirements.txt에 모두 포함되어 있는지 다시 한번 확인합니다.
+text
+
+# requirements.txt
+fastapi
+uvicorn
+psycopg2-binary
+SQLAlchemy
+sqlmodel
+jinja2
+
+3. Docker Compose를 이용한 실행
+프로젝트 루트 디렉토리(kra-aigov-dashiq/)에서 다음 명령어를 실행하여 DashIQ 애플리케이션과 PostgreSQL 데이터베이스를 함께 실행합니다.
+bash
+
+docker-compose up --build
+
+    --build: Dockerfile이나 docker-compose.yml이 변경되었으므로 이미지를 다시 빌드합니다. 첫 실행 시에는 모든 이미지를 빌드하고 다운로드하므로 시간이 다소 소요될 수 있습니다.
+
+컨테이너가 성공적으로 실행되면, 터미널에 dashiq 서비스와 db 서비스의 로그가 출력됩니다. dashiq 서비스의 로그에서 Uvicorn running on http://0.0.0.0:8001과 같은 메시지를 확인할 수 있습니다.
+4. DashIQ 웹 UI 접속 및 확인
+웹 브라우저를 열고 http://localhost:8001에 접속합니다. DashIQ 대시보드 화면이 나타나야 합니다. 초기에는 로그 데이터가 없으므로
+
+todo. 
+
+ShadowScan 모듈 개발 가이드 todo 리스트 작성 
+이제 KRA-AiGov 솔루션의 세 번째 핵심 모듈인 ShadowScan 개발 가이드를 시작하겠습니다.
+ShadowScan 역할 및 아키텍처 설명
+1. ShadowScan의 역할
+ShadowScan은 기업 네트워크 내에서 승인되지 않은 AI 서비스 사용, 즉 'Shadow AI'를 탐지하고 관리자에게 알림을 제공하는 역할을 합니다. Shadow AI는 기업의 데이터 유출, 보안 취약점 노출, 규제 미준수 등의 위험을 초래할 수 있으므로, 이를 조기에 식별하고 대응하는 것이 중요합니다. ShadowScan의 주요 역할은 다음과 같습니다.
+
+    Shadow AI 탐지: 기업 네트워크를 통해 발생하는 AI 서비스 관련 트래픽 및 DNS 쿼리를 분석하여, 사전에 정의되지 않거나 승인되지 않은 AI 서비스 사용 시도를 탐지합니다.
+    보안 위협 식별: Shadow AI 사용으로 인해 발생할 수 있는 잠재적인 데이터 유출 경로를 식별하고, 보안 정책 위반 행위를 감지합니다.
+    가시성 제공: 탐지된 Shadow AI 활동에 대한 상세 정보를 DashIQ로 전송하여 관리자가 AI 사용 현황을 종합적으로 파악할 수 있도록 지원합니다.
+    신속한 대응 지원: Shadow AI 활동 탐지 시 즉각적인 알림을 제공하여, 관리자가 신속하게 대응하고 필요한 조치를 취할 수 있도록 돕습니다.
+
+2. ShadowScan의 아키텍처
+ShadowScan은 네트워크 트래픽 및 DNS 로그를 분석하는 방식으로 구현될 수 있습니다. MVP 단계에서는 네트워크 장비의 로그를 활용하거나, 네트워크 트래픽을 미러링하여 분석하는 방식을 고려할 수 있습니다. 다음은 ShadowScan의 기본적인 아키텍처입니다.
+mermaid
+
+graph TD
+    A[기업 네트워크] -->|네트워크 트래픽/로그| B(ShadowScan 모듈)
+    B -->|탐지 로그 전송| C[DashIQ (로그 저장소)]
+    B -->|알림| D[관리자]
+
+    subgraph ShadowScan 내부 구성
+        B1[네트워크 트래픽 수집/로그 파서] --> B2[AI 서비스 도메인/IP DB]
+        B1 --> B3[트래픽/DNS 분석 엔진]
+        B3 --> B4[정책 위반 탐지]
+        B4 --> B5[알림/로깅 모듈]
+        B5 --> C
+        B5 --> D
+    end
+
+    네트워크 트래픽 수집/로그 파서: 기업 네트워크의 트래픽을 직접 수집(예: SPAN 포트 미러링)하거나, 방화벽, DNS 서버, 프록시 서버 등에서 생성되는 로그를 수집하고 파싱하는 역할을 합니다. MVP 단계에서는 DNS 서버 로그 분석이 가장 구현하기 용이합니다.
+    AI 서비스 도메인/IP DB: OpenAI, Claude, Google Gemini 등 주요 AI 서비스의 알려진 도메인 및 IP 주소 목록을 관리합니다. 이 목록은 지속적으로 업데이트되어야 합니다.
+    트래픽/DNS 분석 엔진: 수집된 네트워크 트래픽 또는 DNS 쿼리 로그를 분석하여, AI 서비스 도메인/IP DB와 비교하고, 알려진 AI 서비스로의 접근 시도를 식별합니다.
+    정책 위반 탐지: AI 서비스 도메인/IP DB에 없는 도메인으로의 AI 서비스 관련 트래픽이 발생하거나, 승인되지 않은 사용자가 AI 서비스에 접근하는 경우를 정책 위반으로 탐지합니다.
+    알림/로깅 모듈: 탐지된 Shadow AI 활동에 대한 상세 정보를 DashIQ로 전송하고, 관리자에게 실시간 알림(예: 이메일, Slack 메시지)을 보냅니다.
+
+ShadowScan은 네트워크 수준에서 AI 서비스 사용을 모니터링하고 통제함으로써, PromptGate가 커버하지 못하는 영역의 Shadow AI 활동을 탐지하여 기업 보안을 강화하는 데 기여합니다.
+다음 단계에서는 ShadowScan의 핵심 기능(네트워크 트래픽 분석, DNS 로그 분석, 알림)을 더 구체적으로 정의하고, 이를 구현하기 위한 가이드를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+ShadowScan의 역할과 아키텍처에 대한 설명을 드렸으니, 이제 ShadowScan의 핵심 기능들을 정의하고, 이를 구현하기 위한 가이드를 제공해 드리겠습니다.
+ShadowScan 핵심 기능 정의
+ShadowScan의 MVP(Minimum Viable Product) 단계에서 구현할 핵심 기능은 크게 세 가지입니다: 네트워크 트래픽 분석, DNS 로그 분석, 그리고 알림입니다.
+1. 네트워크 트래픽 분석 (Network Traffic Analysis)
+
+    목표: 기업 네트워크를 통과하는 트래픽을 모니터링하여 AI 서비스로의 연결 시도를 식별합니다. MVP 단계에서는 주로 알려진 AI 서비스의 도메인/IP 주소 기반으로 탐지합니다.
+    세부 기능:
+        AI 서비스 도메인/IP 식별: OpenAI, Google Gemini, Anthropic Claude 등 주요 AI 서비스 제공업체의 도메인(예: api.openai.com, generativelanguage.googleapis.com, api.anthropic.com) 및 관련 IP 주소 목록을 관리합니다.
+        트래픽 패턴 분석: HTTP/HTTPS 요청의 호스트 헤더, SNI(Server Name Indication) 필드 등을 분석하여 AI 서비스 도메인으로의 연결을 탐지합니다.
+        비인가 AI 서비스 탐지: 관리자가 승인하지 않은 AI 서비스 도메인으로의 연결 시도를 탐지합니다.
+    구현 고려사항: 네트워크 트래픽을 직접 캡처하고 분석하는 것은 복잡하며 높은 성능을 요구합니다. MVP에서는 기존 네트워크 장비(방화벽, 프록시 서버)의 로그를 활용하거나, 경량화된 트래픽 분석 도구(예: Zeek, Suricata의 특정 규칙)를 사용하는 것을 고려할 수 있습니다.
+
+2. DNS 로그 분석 (DNS Log Analysis)
+
+    목표: 기업 내부 DNS 서버의 쿼리 로그를 분석하여 사용자들이 어떤 도메인에 접근하려 했는지 파악하고, 이를 통해 Shadow AI 사용 시도를 탐지합니다. 네트워크 트래픽 분석보다 구현이 용이하며 효과적인 Shadow AI 탐지 방법 중 하나입니다.
+    세부 기능:
+        DNS 쿼리 수집: 기업 내부 DNS 서버(예: BIND, Windows DNS Server)에서 발생하는 모든 쿼리 로그를 수집합니다.
+        AI 서비스 도메인 매칭: 수집된 DNS 쿼리 도메인과 사전에 정의된 AI 서비스 도메인 목록을 비교하여 일치하는 항목을 탐지합니다.
+        비인가 도메인 탐지: AI 서비스와 관련이 있지만, 기업에서 승인하지 않은 도메인으로의 DNS 쿼리를 탐지합니다.
+    구현 고려사항: DNS 서버 로그 포맷에 대한 이해가 필요하며, 로그 파싱 및 분석을 위한 스크립트 또는 애플리케이션 개발이 필요합니다. 대량의 DNS 로그를 효율적으로 처리할 수 있는 방법을 고려해야 합니다.
+
+3. 알림 (Alerting)
+
+    목표: Shadow AI 활동이 탐지되었을 때, 관리자에게 즉시 알림을 전송하여 신속한 대응을 가능하게 합니다.
+    세부 기능:
+        실시간 알림: 탐지된 Shadow AI 활동에 대한 정보를 DashIQ로 전송하고, 필요에 따라 이메일, Slack, 또는 다른 메시징 플랫폼을 통해 관리자에게 실시간 알림을 보냅니다.
+        알림 내용 상세화: 알림에는 탐지된 시간, 사용자 정보(IP 주소, 사용자 ID), 접근 시도한 AI 서비스 도메인/IP, 탐지 유형(예: 비인가 AI 서비스 접근), 관련 로그 링크 등 상세 정보가 포함되어야 합니다.
+        알림 정책 설정: 알림의 중요도에 따라 알림을 보낼 대상, 알림 빈도 등을 설정할 수 있는 기능을 제공합니다.
+    구현 고려사항: DashIQ와의 연동은 PromptGate와 유사하게 HTTP POST를 통해 로그 데이터를 전송하는 방식으로 구현할 수 있습니다. 이메일 알림을 위해서는 SMTP 서버 설정이 필요하며, Slack 등 다른 플랫폼 연동을 위해서는 해당 플랫폼의 API를 활용해야 합니다.
+
+다음 단계에서는 ShadowScan의 구현 가이드(네트워크 모니터링, DNS 쿼리 분석)를 더 구체적으로 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+ShadowScan의 핵심 기능 정의에 이어, 이제 ShadowScan의 구현 가이드(네트워크 모니터링, DNS 쿼리 분석)를 제공해 드리겠습니다.
+ShadowScan 구현 가이드 (네트워크 모니터링, DNS 쿼리 분석)
+ShadowScan은 기업 네트워크 내에서 Shadow AI 활동을 탐지하기 위해 네트워크 트래픽 및 DNS 쿼리를 분석합니다. MVP 단계에서는 구현의 용이성과 효율성을 고려하여 DNS 로그 분석에 중점을 두고, 네트워크 트래픽 분석은 기존 장비의 로그를 활용하는 방안을 제시합니다.
+1. AI 서비스 도메인 목록 관리
+Shadow AI 탐지의 핵심은 알려진 AI 서비스 도메인 목록을 정확하게 유지하는 것입니다. 이 목록은 ShadowScan이 DNS 쿼리나 네트워크 트래픽을 분석할 때 참조하는 기준이 됩니다. ai_service_domains.txt와 같은 파일로 관리하거나, 데이터베이스에 저장할 수 있습니다.
+text
+
+# ai_service_domains.txt 예시
+openai.com
+api.openai.com
+chat.openai.com
+anthropic.com
+api.anthropic.com
+claude.ai
+generativelanguage.googleapis.com
+bard.google.com
+perplexity.ai
+
+이 목록은 지속적으로 업데이트되어야 합니다. 새로운 AI 서비스가 등장하거나 기존 서비스의 도메인이 변경될 수 있기 때문입니다.
+2. DNS 로그 분석을 통한 Shadow AI 탐지
+DNS 로그 분석은 Shadow AI를 탐지하는 가장 효과적이고 구현하기 쉬운 방법 중 하나입니다. 기업 내부 DNS 서버의 쿼리 로그를 주기적으로 분석하여, 사용자들이 어떤 도메인에 접근하려 했는지 파악할 수 있습니다.
+2.1. DNS 로그 수집
+
+    BIND DNS 서버: BIND는 syslog를 통해 로그를 남기거나, logging 설정을 통해 특정 파일에 로그를 기록할 수 있습니다. 일반적으로 /var/log/syslog 또는 /var/log/named/query.log 등에 기록됩니다.
+    Windows DNS 서버: 이벤트 뷰어(Event Viewer) 또는 DNS 디버그 로깅을 통해 로그를 수집할 수 있습니다.
+    로그 전달: 수집된 DNS 로그는 중앙 집중식 로그 관리 시스템(예: ELK Stack, Splunk)으로 전달되거나, ShadowScan 모듈이 직접 로그 파일을 읽어 분석할 수 있습니다.
+
+2.2. Python을 이용한 DNS 로그 분석 예시
+다음은 Python 스크립트를 사용하여 DNS 쿼리 로그 파일에서 AI 서비스 도메인으로의 접근을 탐지하는 간단한 예시입니다. 이 스크립트는 가상의 DNS 쿼리 로그 파일(dns_query.log)을 읽고, ai_service_domains.txt에 정의된 도메인과 비교합니다.
+먼저, dns_query.log 파일을 생성합니다. (실제 DNS 로그 형식은 다를 수 있습니다.)
+text
+
+# dns_query.log 예시
+2025-06-11 10:00:01 client1.internal.com queried openai.com
+2025-06-11 10:00:05 client2.internal.com queried www.google.com
+2025-06-11 10:00:10 client3.internal.com queried api.anthropic.com
+2025-06-11 10:00:15 client1.internal.com queried example.com
+2025-06-11 10:00:20 client4.internal.com queried chat.openai.com
+2025-06-11 10:00:25 client5.internal.com queried internal-app.local
+
+그리고 ai_service_domains.txt 파일을 생성합니다.
+text
+
+# ai_service_domains.txt
+openai.com
+api.openai.com
+chat.openai.com
+anthropic.com
+api.anthropic.com
+claude.ai
+generativelanguage.googleapis.com
+bard.google.com
+perplexity.ai
+
+이제 shadowscan_dns_analyzer.py 스크립트를 작성합니다.
+python
+
+# shadowscan_dns_analyzer.py
+
+import re
+import datetime
+import json
+import os
+
+# 로깅 설정
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# --- 설정 --- #
+DNS_LOG_FILE = "dns_query.log"
+AI_DOMAINS_FILE = "ai_service_domains.txt"
+
+# DashIQ API 엔드포인트 (환경 변수에서 로드)
+DASH_IQ_LOG_API_URL = os.getenv("DASH_IQ_LOG_API_URL", "http://localhost:8001/api/logs" )
+
+# --- AI 서비스 도메인 목록 로드 --- #
+def load_ai_domains(file_path):
+    domains = set()
+    try:
+        with open(file_path, "r") as f:
+            for line in f:
+                domain = line.strip().lower()
+                if domain and not domain.startswith("#"):
+                    domains.add(domain)
+        logger.info(f"Loaded {len(domains)} AI service domains.")
+    except FileNotFoundError:
+        logger.error(f"AI service domains file not found: {file_path}")
+    return domains
+
+# --- 로그 전송 함수 (PromptGate의 log_ai_usage와 유사) --- #
+async def send_log_to_dashiq(log_data: dict):
+    import httpx # 함수 내에서 import 하여 필요할 때만 로드
+    try:
+        async with httpx.AsyncClient( ) as client:
+            response = await client.post(DASH_IQ_LOG_API_URL, json=log_data, timeout=5)
+            response.raise_for_status()
+            logger.info(f"[ShadowScan Log] Successfully sent log to DashIQ. Response: {response.status_code}")
+    except httpx.RequestError as e:
+        logger.error(f"[ShadowScan Log Error] Failed to send log to DashIQ (RequestError ): {e}")
+        with open("shadowscan_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("ShadowScan log data backed up to shadowscan_failed_logs.jsonl")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[ShadowScan Log Error] Failed to send log to DashIQ (HTTPStatusError ): {e.response.status_code} - {e.response.text}")
+        with open("shadowscan_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("ShadowScan log data backed up to shadowscan_failed_logs.jsonl")
+    except Exception as e:
+        logger.error(f"[ShadowScan Log Error] An unexpected error occurred during logging: {e}")
+        with open("shadowscan_failed_logs.jsonl", "a") as f:
+            f.write(json.dumps(log_data) + "\n")
+        logger.warning("ShadowScan log data backed up to shadowscan_failed_logs.jsonl")
+
+# --- DNS 로그 분석 함수 --- #
+async def analyze_dns_log(log_file_path, ai_domains):
+    logger.info(f"Starting DNS log analysis for {log_file_path}")
+    # 예시 로그 패턴: YYYY-MM-DD HH:MM:SS client.internal.com queried domain.com
+    log_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\S+) queried (\S+)$")
+
+    try:
+        with open(log_file_path, "r") as f:
+            for line in f:
+                match = log_pattern.match(line)
+                if match:
+                    timestamp_str, client_host, queried_domain = match.groups()
+                    log_timestamp = datetime.datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+
+                    # 쿼리된 도메인이 AI 서비스 도메인 목록에 있는지 확인
+                    is_ai_domain = False
+                    for ai_domain in ai_domains:
+                        # 부분 일치 또는 서브도메인 포함 여부 확인
+                        if queried_domain == ai_domain or queried_domain.endswith(f".{ai_domain}"):
+                            is_ai_domain = True
+                            break
+
+                    if is_ai_domain:
+                        logger.warning(f"[Shadow AI Detected] User {client_host} queried AI service domain: {queried_domain}")
+                        # DashIQ로 로그 전송
+                        log_data = {
+                            "timestamp": log_timestamp.isoformat(),
+                            "user_id": client_host, # DNS 쿼리에서는 사용자 ID 대신 호스트명 사용
+                            "ip_address": "N/A", # DNS 로그에 IP가 없을 수 있음
+                            "device_info": "N/A",
+                            "ai_service": "Shadow AI", # Shadow AI로 분류
+                            "model_name": "N/A",
+                            "original_prompt": f"DNS query to {queried_domain}",
+                            "masked_prompt": f"DNS query to {queried_domain}",
+                            "masked_details": {},
+                            "ai_response": "N/A",
+                            "status": "DETECTED",
+                            "filter_status": "SHADOW_AI_DETECTED",
+                            "filter_message": f"DNS query to unapproved AI service domain: {queried_domain}",
+                            "block_reason": "N/A",
+                            "response_filter_status": "N/A",
+                            "response_filter_message": "N/A",
+                            "session_id": "N/A",
+                            "request_duration_ms": 0
+                        }
+                        await send_log_to_dashiq(log_data)
+
+    except FileNotFoundError:
+        logger.error(f"DNS log file not found: {log_file_path}")
+    except Exception as e:
+        logger.error(f"An error occurred during DNS log analysis: {e}")
+
+# --- 메인 실행 로직 --- #
+if __name__ == "__main__":
+    import asyncio
+
+    ai_domains_list = load_ai_domains(AI_DOMAINS_FILE)
+    if ai_domains_list:
+        asyncio.run(analyze_dns_log(DNS_LOG_FILE, ai_domains_list))
+    else:
+        logger.error("No AI service domains loaded. Exiting.")
+
+코드 설명:
+
+    load_ai_domains 함수: ai_service_domains.txt 파일에서 AI 서비스 도메인 목록을 로드합니다. 각 줄의 공백을 제거하고 소문자로 변환하여 set에 저장하여 빠른 조회를 가능하게 합니다.
+    send_log_to_dashiq 함수: PromptGate에서 사용했던 로그 전송 함수와 동일합니다. DashIQ로 탐지된 Shadow AI 활동 로그를 전송하는 역할을 합니다.
+    analyze_dns_log 함수:
+        log_pattern: DNS 로그 파일의 각 줄을 파싱하기 위한 정규 표현식입니다. 실제 DNS 서버의 로그 형식에 맞춰 수정해야 합니다.
+        로그 파일을 한 줄씩 읽으면서 정규 표현식으로 타임스탬프, 클라이언트 호스트, 쿼리된 도메인을 추출합니다.
+        추출된 queried_domain이 ai_domains 목록에 있는지 확인합니다. 이때 서브도메인(예: chat.openai.com이 openai.com에 포함되는 경우)도 함께 탐지할 수 있도록 로직을 포함했습니다.
+        AI 서비스 도메인이 탐지되면 경고 메시지를 로깅하고, send_log_to_dashiq 함수를 호출하여 DashIQ로 로그를 전송합니다. 로그 데이터는 Shadow AI 탐지임을 명확히 나타내도록 구성됩니다.
+    메인 실행 로직: if __name__ == "__main__": 블록에서 ai_service_domains.txt를 로드하고, analyze_dns_log 함수를 비동기적으로 실행합니다.
+
+3. 네트워크 트래픽 분석 (고려 사항)
+DNS 로그 분석 외에 실제 네트워크 트래픽을 분석하는 것은 더 복잡하며, 다음과 같은 접근 방식을 고려할 수 있습니다.
+
+    기존 네트워크 장비 로그 활용: 방화벽, 웹 프록시, IDS/IPS(침입 탐지/방지 시스템) 등 기존 네트워크 보안 장비에서 생성되는 로그를 수집하여 분석합니다. 이들 장비는 이미 트래픽을 모니터링하고 있으므로, ShadowScan은 이 로그들을 파싱하여 AI 서비스 관련 트래픽을 식별하는 데 집중할 수 있습니다.
+        장점: 별도의 트래픽 캡처 인프라 구축이 필요 없습니다.
+        단점: 로그의 상세도와 가용성에 따라 탐지 정확도가 달라질 수 있습니다.
+    경량 트래픽 분석 도구 사용: Zeek(구 Bro), Suricata와 같은 오픈소스 네트워크 보안 모니터링 도구를 사용하여 특정 AI 서비스 도메인으로의 트래픽을 탐지하는 규칙을 작성하고, 이 도구들이 생성하는 로그를 분석할 수 있습니다.
+        장점: 실시간에 가까운 트래픽 분석이 가능합니다.
+        단점: 별도의 설치 및 설정, 그리고 네트워크 트래픽 미러링(SPAN/TAP) 설정이 필요할 수 있습니다.
+    Python scapy 라이브러리 (고급): scapy와 같은 Python 라이브러리를 사용하여 직접 네트워크 패킷을 캡처하고 분석할 수 있습니다. 하지만 이는 높은 권한과 네트워크 지식을 요구하며, 대규모 트래픽 처리에는 성능 문제가 발생할 수 있으므로 MVP 단계에서는 권장하지 않습니다.
+
+MVP 단계에서는 DNS 로그 분석을 우선적으로 구현하고, 추후 필요에 따라 네트워크 장비 로그 분석 또는 경량 트래픽 분석 도구와의 연동을 고려하는 것이 효율적입니다.
+이 가이드와 코드 예시를 바탕으로 ShadowScan의 DNS 로그 분석 기능을 구현해 보십시오. 다음 단계에서는 ShadowScan과 DashIQ 연동 가이드(탐지 로그 전송)를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+ShadowScan의 DNS 로그 분석 구현 가이드를 제공해 드렸으니, 이제 ShadowScan에서 탐지된 로그를 DashIQ로 전송하는 연동 가이드를 제공해 드리겠습니다.
+ShadowScan과 DashIQ 연동 가이드 (탐지 로그 전송)
+ShadowScan이 기업 네트워크 내에서 Shadow AI 활동을 탐지하면, 이 탐지 로그를 DashIQ로 전송하여 중앙 집중식으로 관리하고 시각화해야 합니다. 이는 DashIQ가 제공하는 통합 대시보드에서 모든 AI 사용 및 보안 이벤트를 한눈에 파악할 수 있도록 하기 위함입니다. ShadowScan에서 DashIQ로 로그를 전송하는 방식은 PromptGate에서 로그를 전송하는 방식과 동일하게 HTTP POST 요청을 사용합니다.
+1. 로그 데이터 구조 정의
+ShadowScan에서 DashIQ로 전송할 로그 데이터는 DashIQ의 AILog 데이터 모델과 호환되어야 합니다. 이를 통해 DashIQ는 수신된 로그를 별도의 변환 없이 데이터베이스에 저장하고 시각화할 수 있습니다. ShadowScan의 탐지 로그는 다음과 같은 필드를 포함해야 합니다.
+json
+
+{
+    "timestamp": "2025-06-11T10:30:00Z",
+    "user_id": "client1.internal.com",
+    "ip_address": "192.168.1.10",
+    "device_info": "N/A",
+    "ai_service": "Shadow AI",
+    "model_name": "N/A",
+    "original_prompt": "DNS query to chat.openai.com",
+    "masked_prompt": "DNS query to chat.openai.com",
+    "masked_details": {},
+    "ai_response": "N/A",
+    "status": "DETECTED",
+    "filter_status": "SHADOW_AI_DETECTED",
+    "filter_message": "DNS query to unapproved AI service domain: chat.openai.com",
+    "block_reason": "N/A",
+    "response_filter_status": "N/A",
+    "response_filter_message": "N/A",
+    "session_id": "N/A",
+    "request_duration_ms": 0
+}
+
+    timestamp: 탐지된 시간 (ISO 8601 형식)
+    user_id: DNS 쿼리를 발생시킨 클라이언트의 호스트명 또는 IP 주소. ShadowScan은 사용자 ID를 직접 알기 어려우므로, 호스트명이나 IP 주소를 활용합니다.
+    ip_address: 클라이언트의 IP 주소 (DNS 로그에 포함되어 있다면 사용, 없다면 N/A)
+    ai_service: "Shadow AI"로 고정하여 DashIQ에서 Shadow AI 관련 로그임을 명확히 구분할 수 있도록 합니다.
+    original_prompt / masked_prompt: 탐지된 활동에 대한 설명 (예: "DNS query to chat.openai.com"). ShadowScan은 프롬프트 마스킹을 수행하지 않으므로 동일하게 설정합니다.
+    status: "DETECTED"로 설정하여 탐지된 활동임을 나타냅니다.
+    filter_status: "SHADOW_AI_DETECTED"로 설정하여 탐지 유형을 명확히 합니다.
+    filter_message: 탐지된 상세 메시지 (예: "DNS query to unapproved AI service domain: chat.openai.com")
+    나머지 필드는 ShadowScan의 특성상 해당 정보가 없으므로 "N/A" 또는 기본값으로 설정합니다.
+
+2. shadowscan_dns_analyzer.py 코드 수정 (로그 전송 로직)
+이전 가이드에서 제공된 shadowscan_dns_analyzer.py 스크립트에는 이미 send_log_to_dashiq 함수가 포함되어 있습니다. 이 함수를 활용하여 탐지된 Shadow AI 로그를 DashIQ로 전송할 수 있습니다. analyze_dns_log 함수 내에서 로그 데이터를 구성하고 await send_log_to_dashiq(log_data)를 호출하는 부분이 핵심입니다.
+python
+
+# shadowscan_dns_analyzer.py (analyze_dns_log 함수 내에서 로그 데이터 구성 부분)
+
+# ... (기존 코드)
+
+                    if is_ai_domain:
+                        logger.warning(f"[Shadow AI Detected] User {client_host} queried AI service domain: {queried_domain}")
+                        # DashIQ로 로그 전송
+                        log_data = {
+                            "timestamp": log_timestamp.isoformat(),
+                            "user_id": client_host, # DNS 쿼리에서는 사용자 ID 대신 호스트명 사용
+                            "ip_address": "N/A", # DNS 로그에 IP가 없을 수 있음
+                            "device_info": "N/A",
+                            "ai_service": "Shadow AI", # Shadow AI로 분류
+                            "model_name": "N/A",
+                            "original_prompt": f"DNS query to {queried_domain}",
+                            "masked_prompt": f"DNS query to {queried_domain}",
+                            "masked_details": {},
+                            "ai_response": "N/A",
+                            "status": "DETECTED",
+                            "filter_status": "SHADOW_AI_DETECTED",
+                            "filter_message": f"DNS query to unapproved AI service domain: {queried_domain}",
+                            "block_reason": "N/A",
+                            "response_filter_status": "N/A",
+                            "response_filter_message": "N/A",
+                            "session_id": "N/A",
+                            "request_duration_ms": 0
+                        }
+                        await send_log_to_dashiq(log_data)
+
+# ... (나머지 코드)
+
+3. 환경 변수 설정
+ShadowScan 스크립트가 DashIQ API 엔드포인트를 올바르게 찾을 수 있도록 DASH_IQ_LOG_API_URL 환경 변수를 설정해야 합니다. DashIQ가 Docker Compose로 실행되고 있다면, ShadowScan 컨테이너에서 DashIQ 서비스 이름으로 접근할 수 있습니다.
+bash
+
+# ShadowScan 스크립트를 직접 실행하는 경우
+export DASH_IQ_LOG_API_URL="http://localhost:8001/api/logs"
+python shadowscan_dns_analyzer.py
+
+# ShadowScan을 Docker 컨테이너로 실행하는 경우 (Dockerfile 또는 docker-compose.yml에 추가 )
+# docker-compose.yml 예시 (ShadowScan 서비스 추가)
+version: '3.8'
+
+services:
+  db:
+    # ... (기존 DashIQ db 서비스)
+
+  dashiq:
+    # ... (기존 DashIQ dashiq 서비스)
+
+  shadowscan:
+    build:
+      context: ./shadowscan_dir # ShadowScan 코드가 있는 디렉토리
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DASH_IQ_LOG_API_URL: http://dashiq:8001/api/logs # DashIQ 서비스 이름으로 접근
+    depends_on:
+      - dashiq # DashIQ 서비스가 먼저 시작되도록 의존성 설정
+    volumes:
+      - ./shadowscan_dir:/app # ShadowScan 코드 마운트
+
+4. 연동 테스트 시나리오
+
+    DashIQ 실행: docker-compose up --build 명령어를 사용하여 DashIQ와 PostgreSQL을 실행합니다.
+    ShadowScan 스크립트 실행: shadowscan_dns_analyzer.py 스크립트를 실행합니다. 이 스크립트는 dns_query.log 파일을 읽고 AI 서비스 도메인 쿼리를 탐지합니다.
+    로그 확인: ShadowScan 스크립트의 콘솔 출력에서 [Shadow AI Detected] 메시지를 확인하고, [ShadowScan Log] Successfully sent log to DashIQ 메시지가 출력되는지 확인합니다.
+    DashIQ 대시보드 확인: 웹 브라우저에서 http://localhost:8001에 접속하여 DashIQ 대시보드를 새로고침합니다. ai_service가 Shadow AI로 표시된 새로운 로그 항목이 추가되었는지 확인합니다.
+
+이 가이드를 통해 ShadowScan이 탐지한 Shadow AI 활동 로그를 DashIQ로 성공적으로 전송하고 시각화할 수 있을 것입니다. 다음 단계에서는 ShadowScan 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+ShadowScan의 DashIQ 연동 가이드를 제공해 드렸으니, 이제 ShadowScan 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다.
+ShadowScan 개발 환경 설정 및 테스트 가이드
+이 가이드는 ShadowScan 모듈을 로컬 개발 환경에서 설정하고, 기본적인 기능을 테스트하는 방법을 설명합니다. 앞서 제공해 드린 shadowscan_dns_analyzer.py, ai_service_domains.txt, dns_query.log 파일을 기반으로 진행됩니다.
+1. 프로젝트 구조 확인
+먼저, ShadowScan 프로젝트 디렉토리가 다음과 같은 구조를 가지고 있는지 확인합니다.
+
+kra-aigov-shadowscan/
+├── shadowscan_dns_analyzer.py
+├── ai_service_domains.txt
+└── dns_query.log
+
+    shadowscan_dns_analyzer.py: ShadowScan의 핵심 로직(DNS 로그 분석 및 DashIQ 로그 전송)이 구현된 Python 스크립트
+    ai_service_domains.txt: AI 서비스 도메인 목록 파일
+    dns_query.log: 테스트를 위한 DNS 쿼리 로그 예시 파일
+
+2. requirements.txt 업데이트 (선택 사항)
+shadowscan_dns_analyzer.py 스크립트는 httpx 라이브러리를 사용합니다. 만약 이 스크립트를 별도의 Docker 컨테이너에서 실행하거나, 가상 환경에서 의존성을 관리하려면 requirements.txt 파일을 생성하고 httpx를 추가해야 합니다.
+text
+
+# requirements.txt
+httpx
+
+이후 pip install -r requirements.txt 명령어로 설치할 수 있습니다.
+3. 환경 변수 설정
+ShadowScan 스크립트가 DashIQ API 엔드포인트를 올바르게 찾을 수 있도록 DASH_IQ_LOG_API_URL 환경 변수를 설정해야 합니다. DashIQ가 실행 중인 주소로 설정합니다.
+bash
+
+export DASH_IQ_LOG_API_URL="http://localhost:8001/api/logs"
+# 또는 Docker Compose 환경에서 DashIQ 서비스 이름으로: http://dashiq:8001/api/logs
+
+4. ShadowScan 스크립트 실행
+환경 변수 설정 후, 프로젝트 루트 디렉토리(kra-aigov-shadowscan/ )에서 다음 명령어를 실행하여 ShadowScan 스크립트를 실행합니다.
+bash
+
+python shadowscan_dns_analyzer.py
+
+스크립트가 실행되면 dns_query.log 파일을 읽고, ai_service_domains.txt에 정의된 도메인과 일치하는 DNS 쿼리를 탐지합니다. 탐지된 로그는 콘솔에 출력되고, 설정된 DASH_IQ_LOG_API_URL로 전송됩니다.
+5. ShadowScan 기능 테스트 시나리오
+ShadowScan의 기능을 테스트하기 위해 다음 시나리오를 따릅니다.
+5.1. 사전 준비: DashIQ 실행
+ShadowScan이 전송하는 로그를 수신할 DashIQ 모듈이 실행 중이어야 합니다. DashIQ 프로젝트 디렉토리에서 다음 명령어를 실행하여 DashIQ와 PostgreSQL을 시작합니다.
+bash
+
+docker-compose up --build
+
+DashIQ가 http://localhost:8001에서 실행 중인지 확인합니다.
+5.2. 테스트 1: AI 서비스 도메인 쿼리 탐지
+dns_query.log 파일에 ai_service_domains.txt에 포함된 도메인(예: openai.com, api.anthropic.com )에 대한 쿼리 로그가 포함되어 있는지 확인합니다. 스크립트를 실행하면 다음과 유사한 출력이 콘솔에 나타나야 합니다.
+
+INFO: ... [Shadow AI Detected] User client1.internal.com queried AI service domain: openai.com
+INFO: ... [ShadowScan Log] Successfully sent log to DashIQ. Response: 200
+
+5.3. 테스트 2: DashIQ 대시보드에서 로그 확인
+웹 브라우저에서 http://localhost:8001에 접속하여 DashIQ 대시보드를 새로고침합니다. ai_service가 Shadow AI로 표시된 새로운 로그 항목이 추가되었는지 확인합니다. original_prompt 필드에 DNS 쿼리 정보가 포함되어 있어야 합니다.
+5.4. 테스트 3: 비 AI 서비스 도메인 쿼리 (탐지 안 됨 확인 )
+dns_query.log 파일에 www.google.com이나 example.com과 같이 AI 서비스 도메인이 아닌 쿼리가 포함되어 있는지 확인합니다. 스크립트를 실행했을 때 이러한 쿼리에 대해서는 [Shadow AI Detected] 메시지가 출력되지 않아야 합니다.
+6. 문제 해결 팁
+
+    환경 변수 확인: echo $DASH_IQ_LOG_API_URL 명령어로 환경 변수가 올바르게 설정되었는지 확인합니다.
+    DashIQ 상태 확인: DashIQ 서버가 정상적으로 실행 중이고, 8001번 포트에서 요청을 수신하고 있는지 확인합니다.
+    로그 파일 경로 확인: shadowscan_dns_analyzer.py 스크립트 내의 DNS_LOG_FILE 및 AI_DOMAINS_FILE 경로가 올바른지 확인합니다.
+    로그 형식 일치: shadowscan_dns_analyzer.py의 log_pattern 정규 표현식이 실제 dns_query.log 파일의 로그 형식과 일치하는지 확인합니다. 실제 운영 환경의 DNS 로그는 예시와 다를 수 있으므로, 실제 로그 형식에 맞게 정규 표현식을 수정해야 합니다.
+    네트워크 연결: ShadowScan 스크립트가 DashIQ 서버로 네트워크 요청을 보낼 수 있는지 확인합니다. 방화벽 설정 등을 점검합니다.
+
+이 가이드를 통해 ShadowScan 개발 환경을 설정하고 기본적인 기능을 테스트해 보십시오. 이 과정에서 발생하는 모든 문제에 대해 제가 지원해 드릴 수 있습니다. ShadowScan이 성공적으로 동작하는 것을 확인하면 다음 모듈인 TrustLLM 개발 가이드로 넘어가겠습니다.
+
+todo. 
+
+TrustLLM 및 기타 모듈 개발 가이드 todo 리스트 작성 
+이제 KRA-AiGov 솔루션의 네 번째 핵심 모듈인 TrustLLM 개발 가이드를 시작하겠습니다.
+TrustLLM 역할 및 아키텍처 설명
+1. TrustLLM의 역할
+TrustLLM은 기업 내부의 보안 및 규제 요구사항을 충족하면서 대규모 언어 모델(LLM)을 활용할 수 있도록 지원하는 모듈입니다. 외부 AI 서비스 사용에 대한 통제와 함께, 민감 정보 처리나 특정 도메인 지식 활용이 필요한 경우 내부에서 호스팅되는 LLM으로 트래픽을 라우팅하는 역할을 수행합니다. TrustLLM의 주요 역할은 다음과 같습니다.
+
+    데이터 보안 및 규제 준수: 민감한 기업 데이터가 외부 LLM 서비스로 전송되는 것을 방지하고, 내부 LLM 환경에서 데이터를 처리함으로써 데이터 보안 및 규제 준수(예: GDPR, 국내 개인정보보호법)를 강화합니다.
+    비용 효율성: 외부 LLM API 사용량에 따른 비용 부담을 줄이고, 내부 인프라를 활용하여 장기적인 비용 효율성을 확보합니다.
+    맞춤형 LLM 활용: 기업의 특정 도메인 지식이나 내부 데이터를 학습시킨 맞춤형 LLM을 활용하여, 외부 범용 LLM으로는 얻기 어려운 정확하고 특화된 응답을 생성할 수 있도록 지원합니다.
+    성능 및 안정성 제어: 내부 인프라에서 LLM을 운영함으로써 외부 서비스의 네트워크 지연이나 서비스 중단으로부터 자유롭고, 기업의 요구에 맞는 성능 및 안정성을 확보할 수 있습니다.
+    프롬프트 라우팅: PromptGate와 연동하여 사용자의 프롬프트 내용, 민감도, 정책 등을 기반으로 외부 LLM과 내부 TrustLLM 중 적절한 LLM으로 요청을 라우팅합니다.
+
+2. TrustLLM의 아키텍처
+TrustLLM은 크게 프롬프트 라우팅 로직과 내부 LLM 연동 부분으로 구성됩니다. MVP 단계에서는 내부 LLM을 직접 호스팅하는 대신, Hugging Face Transformers 라이브러리 등을 사용하여 경량 LLM을 로드하고 추론하는 방식을 고려할 수 있습니다. 또는, 기업 내부에 이미 구축된 LLM 인프라가 있다면 해당 LLM API와 연동하는 방식도 가능합니다.
+mermaid
+
+graph TD
+    A[사용자 요청] --> B(PromptGate)
+    B -->|라우팅 결정| C{프롬프트 분석/정책}
+    C -->|외부 LLM 요청| D[외부 AI 서비스 (OpenAI, Claude 등)]
+    C -->|내부 LLM 요청| E(TrustLLM 모듈)
+    E -->|LLM 추론| F[내부 LLM (Hugging Face 모델, 사내 LLM 등)]
+    F -->|응답| E
+    E -->|응답| B
+    D -->|응답| B
+    B -->|응답| A
+
+    subgraph TrustLLM 내부 구성
+        E1[API 엔드포인트] --> E2[프롬프트 처리]
+        E2 --> E3[LLM 로드/관리]
+        E3 --> E4[LLM 추론 엔진]
+        E4 --> F
+        E2 --> E5[응답 생성]
+    end
+
+    API 엔드포인트: PromptGate로부터 내부 LLM으로 라우팅된 프롬프트 요청을 수신하는 역할을 합니다. FastAPI를 사용하여 구현할 수 있습니다.
+    프롬프트 처리: 수신된 프롬프트를 내부 LLM에 적합한 형태로 전처리하고, 필요한 경우 추가적인 보안 검사나 컨텍스트 주입을 수행합니다.
+    LLM 로드/관리: 사용할 내부 LLM 모델을 로드하고 관리합니다. MVP 단계에서는 Hugging Face Transformers 라이브러리를 사용하여 미리 학습된 경량 LLM 모델(예: Polyglot-ko, KoAlpaca 등)을 로드할 수 있습니다. GPU가 탑재된 노트북 환경에서 추론 성능을 확보할 수 있습니다.
+    LLM 추론 엔진: 로드된 LLM 모델을 사용하여 실제 프롬프트에 대한 응답을 생성합니다. PyTorch, TensorFlow, 또는 ONNX Runtime과 같은 추론 프레임워크를 활용할 수 있습니다.
+    응답 생성: LLM으로부터 받은 응답을 사용자에게 전달하기 적합한 형태로 후처리하고, 필요한 경우 추가적인 필터링을 수행합니다.
+
+TrustLLM은 기업의 AI 활용 범위를 확장하고, 데이터 보안 및 비용 효율성을 동시에 달성하는 데 중요한 역할을 합니다. 다음 단계에서는 TrustLLM의 핵심 기능(내부 LLM 연동, 프롬프트 라우팅)을 더 구체적으로 정의하고, 이를 구현하기 위한 가이드를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+TrustLLM의 역할과 아키텍처에 대한 설명을 드렸으니, 이제 TrustLLM의 핵심 기능들을 정의하고, 이를 구현하기 위한 가이드를 제공해 드리겠습니다.
+TrustLLM 핵심 기능 정의
+TrustLLM의 MVP(Minimum Viable Product) 단계에서 구현할 핵심 기능은 크게 두 가지입니다: 내부 LLM 연동과 프롬프트 라우팅입니다.
+1. 내부 LLM 연동 (Internal LLM Integration)
+
+    목표: 기업 내부에서 호스팅되는 LLM 모델과 연동하여 프롬프트에 대한 응답을 생성합니다. MVP 단계에서는 Hugging Face Transformers 라이브러리를 사용하여 경량 LLM 모델을 로드하고 추론하는 방식을 제안합니다.
+    세부 기능:
+        모델 로드 및 관리: Hugging Face Hub에서 사전 학습된 모델(예: Polyglot-ko, KoAlpaca 등 한국어 모델)을 다운로드하여 로컬에 저장하고, 애플리케이션 시작 시 메모리에 로드합니다. GPU를 활용하여 추론 속도를 최적화합니다.
+        텍스트 생성 (Inference): 로드된 LLM 모델을 사용하여 입력 프롬프트에 대한 텍스트 응답을 생성합니다. 모델의 토큰 길이 제한, 샘플링 전략(온도, top-p, top-k), 반복 페널티 등 다양한 생성 파라미터를 제어할 수 있어야 합니다.
+        모델 최적화 (선택 사항): ONNX Runtime, TensorRT 등 추론 최적화 도구를 사용하여 모델의 추론 속도를 향상시킬 수 있습니다. (MVP 이후 고려)
+    구현 고려사항: LLM 모델은 크기가 매우 크므로, 모델 로딩 시 메모리 사용량과 추론 시 GPU 메모리 사용량을 고려해야 합니다. GPU가 탑재된 게임용 노트북 환경에서는 충분한 성능을 기대할 수 있습니다.
+
+2. 프롬프트 라우팅 (Prompt Routing)
+
+    목표: PromptGate로부터 수신된 프롬프트를 분석하여, 외부 LLM으로 보낼지 내부 TrustLLM으로 보낼지 결정하는 로직을 구현합니다.
+    세부 기능:
+        정책 기반 라우팅: 사전에 정의된 정책(예: 민감 정보 포함 여부, 특정 키워드 포함 여부, 사용자 그룹)에 따라 라우팅 결정을 내립니다.
+            민감 정보 포함 시: 프롬프트에 개인 식별 정보(PII)나 기업 기밀 정보가 포함되어 있을 경우, 외부 LLM으로의 전송을 차단하고 TrustLLM으로 라우팅합니다.
+            특정 키워드 포함 시: 특정 도메인 지식(예: 내부 프로젝트명, 사내 시스템 용어)과 관련된 키워드가 포함된 경우, TrustLLM으로 라우팅하여 맞춤형 응답을 유도합니다.
+            사용자/그룹 정책: 특정 사용자 그룹은 항상 TrustLLM을 사용하도록 강제하거나, 특정 부서는 외부 LLM 사용을 제한하는 정책을 적용할 수 있습니다.
+        폴백(Fallback) 메커니즘: TrustLLM이 응답을 생성하지 못하거나 오류가 발생할 경우, 외부 LLM으로 폴백하거나 사용자에게 오류를 알리는 메커니즘을 구현합니다.
+    구현 고려사항: 라우팅 로직은 PromptGate 내부에 구현될 수도 있고, TrustLLM이 별도의 라우팅 모듈을 가질 수도 있습니다. KRA-AiGov의 전체 아키텍처를 고려할 때, PromptGate가 1차적인 필터링 및 라우팅 결정을 내리고, TrustLLM은 내부 LLM 서비스 제공에 집중하는 것이 효율적입니다.
+
+TrustLLM 구현 가이드 (LLM 연동, 라우팅 로직)
+여기서는 TrustLLM의 핵심 기능인 내부 LLM 연동과 프롬프트 라우팅 로직에 대한 기본적인 구현 가이드를 제공합니다. TrustLLM은 FastAPI 기반의 API 서버 형태로 구현될 수 있습니다.
+1. requirements.txt 업데이트
+TrustLLM에 필요한 라이브러리들을 requirements.txt에 추가합니다.
+text
+
+# requirements.txt (TrustLLM)
+fastapi
+uvicorn
+transformers # Hugging Face Transformers
+torch # PyTorch (TensorFlow 또는 JAX 선택 가능)
+sentencepiece # 토크나이저에 필요
+accelerate # 모델 로딩 및 추론 최적화 (선택 사항)
+
+2. TrustLLM main.py 기본 구조
+python
+
+# main.py (TrustLLM)
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+import logging
+import os
+
+# Hugging Face Transformers 관련 라이브러리
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+import torch
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# --- 모델 로드 설정 --- #
+# 사용할 Hugging Face 모델 이름 (예: "skt/kogpt2-base-v2", "EleutherAI/polyglot-ko-1.3b")
+# GPU 메모리 상황에 따라 더 작은 모델을 선택하거나, quantization 옵션을 고려해야 합니다.
+MODEL_NAME = os.getenv("TRUSTLLM_MODEL_NAME", "EleutherAI/polyglot-ko-1.3b")
+
+tokenizer = None
+model = None
+generator = None
+
+# --- FastAPI 애플리케이션 인스턴스 생성 --- #
+app = FastAPI(title="KRA-AiGov TrustLLM", version="0.1.0")
+
+@app.on_event("startup")
+async def load_model():
+    """
+    애플리케이션 시작 시 LLM 모델과 토크나이저를 로드합니다.
+    """
+    global tokenizer, model, generator
+    logger.info(f"Loading model: {MODEL_NAME}")
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        # GPU 사용 가능 여부 확인 및 모델을 GPU로 이동
+        device = 0 if torch.cuda.is_available() else -1 # 0은 첫 번째 GPU, -1은 CPU
+        model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32)
+        if torch.cuda.is_available():
+            model.to("cuda")
+
+        # pipeline 사용 시 더 간편하게 텍스트 생성 가능
+        generator = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            device=device # GPU 사용 시 device=0 (첫 번째 GPU)
+        )
+        logger.info(f"Model {MODEL_NAME} loaded successfully on device: {"cuda" if torch.cuda.is_available() else "cpu"}")
+    except Exception as e:
+        logger.error(f"Failed to load model {MODEL_NAME}: {e}")
+        # 모델 로드 실패 시 애플리케이션 종료 또는 오류 처리
+        raise RuntimeError(f"Failed to load LLM model: {e}")
+
+# --- 요청 모델 정의 --- #
+class TrustLLMRequest(BaseModel):
+    prompt: str
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    max_new_tokens: int = 256
+    temperature: float = 0.7
+    top_p: float = 0.9
+
+# --- API 엔드포인트 정의 --- #
+@app.post("/generate")
+async def generate_text(request: TrustLLMRequest):
+    if generator is None:
+        raise HTTPException(status_code=503, detail="LLM model not loaded yet.")
+
+    logger.info(f"Generating text for user {request.user_id} with prompt: {request.prompt[:50]}...")
+    try:
+        # 텍스트 생성
+        # generator 파라미터는 모델에 따라 다를 수 있습니다. (예: do_sample=True, num_return_sequences=1)
+        # Polyglot-ko의 경우, instruction-following 형식으로 프롬프트를 구성하는 것이 좋습니다.
+        # 예: "### 질문:\n{prompt}\n### 답변:\n"
+        formatted_prompt = f"### 질문:\n{request.prompt}\n### 답변:\n"
+
+        outputs = generator(
+            formatted_prompt,
+            max_new_tokens=request.max_new_tokens,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            do_sample=True, # 샘플링 기반 생성
+            num_return_sequences=1, # 하나의 결과만 반환
+            eos_token_id=tokenizer.eos_token_id, # End-of-sequence 토큰 ID
+            pad_token_id=tokenizer.pad_token_id # 패딩 토큰 ID
+        )
+
+        generated_text = outputs[0]["generated_text"]
+        # 생성된 텍스트에서 원래 프롬프트 부분을 제거하고 답변만 추출
+        if formatted_prompt in generated_text:
+            response_text = generated_text.split(formatted_prompt)[-1].strip()
+        else:
+            response_text = generated_text.strip()
+
+        logger.info(f"Generated response: {response_text[:50]}...")
+        return {"status": "success", "response": response_text}
+    except Exception as e:
+        logger.error(f"Error during text generation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate text: {e}")
+
+# --- 애플리케이션 실행 (개발용) --- #
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8002) # TrustLLM은 8002번 포트 사용
+
+코드 설명:
+
+    모델 로드 (load_model 함수):
+        MODEL_NAME: 환경 변수 TRUSTLLM_MODEL_NAME에서 사용할 Hugging Face 모델 이름을 로드합니다. 기본값은 EleutherAI/polyglot-ko-1.3b입니다. GPU 메모리 상황에 따라 더 작은 모델을 선택하거나, load_in_8bit=True 또는 load_in_4bit=True와 같은 양자화(quantization) 옵션을 from_pretrained에 추가하여 메모리 사용량을 줄일 수 있습니다.
+        AutoTokenizer, AutoModelForCausalLM: Hugging Face Transformers 라이브러리를 사용하여 모델과 토크나이저를 로드합니다.
+        model.to("cuda"): GPU가 사용 가능하다면 모델을 GPU 메모리로 이동시켜 추론 속도를 향상시킵니다.
+        pipeline("text-generation", ...): Hugging Face pipeline은 텍스트 생성 작업을 간편하게 수행할 수 있도록 추상화된 인터페이스를 제공합니다.
+    텍스트 생성 (generate_text 엔드포인트):
+        TrustLLMRequest: 입력 프롬프트와 함께 max_new_tokens, temperature, top_p 등 텍스트 생성 파라미터를 받을 수 있도록 Pydantic 모델을 정의합니다.
+        formatted_prompt: Polyglot-ko와 같은 일부 모델은 특정 프롬프트 형식(예: 질문-답변 형식)에서 더 좋은 성능을 보이므로, 입력 프롬프트를 모델에 맞게 포맷팅합니다.
+        generator(...): pipeline 객체를 사용하여 텍스트를 생성합니다. max_new_tokens, temperature, top_p 등의 파라미터를 통해 생성되는 텍스트의 길이와 다양성을 제어할 수 있습니다.
+        생성된 텍스트에서 원래 프롬프트 부분을 제거하고 순수한 답변만 추출하는 로직을 포함했습니다.
+    포트: TrustLLM은 8002번 포트에서 실행되도록 설정했습니다.
+
+3. PromptGate와의 프롬프트 라우팅 연동
+TrustLLM이 준비되면, PromptGate에서 프롬프트 라우팅 로직을 구현해야 합니다. PromptGate의 process_prompt 함수 내에서 다음과 같은 로직을 추가할 수 있습니다.
+python
+
+# main.py (PromptGate - process_prompt 함수 내)
+
+import httpx
+import os
+
+# TrustLLM API 엔드포인트 (환경 변수에서 로드 )
+TRUSTLLM_API_URL = os.getenv("TRUSTLLM_API_URL", "http://localhost:8002/generate" )
+
+# ... (기존 코드)
+
+    # 라우팅 결정 로직 (예시)
+    should_route_to_trustllm = False
+    # 1. 민감 정보가 마스킹된 경우 TrustLLM으로 라우팅
+    if masked_prompt != original_prompt: # 마스킹이 발생했다면
+        should_route_to_trustllm = True
+        logger.info("Routing to TrustLLM: Sensitive information detected.")
+    
+    # 2. 특정 키워드 포함 시 TrustLLM으로 라우팅 (예시: "내부 보고서", "프로젝트 X")
+    internal_keywords = ["내부 보고서", "프로젝트 X"]
+    if any(keyword in original_prompt for keyword in internal_keywords):
+        should_route_to_trustllm = True
+        logger.info("Routing to TrustLLM: Internal keyword detected.")
+
+    # 3. 사용자/그룹 정책 기반 라우팅 (예시: user_id가 "internal_user"인 경우)
+    if user_id == "internal_user":
+        should_route_to_trustllm = True
+        logger.info("Routing to TrustLLM: User policy requires internal LLM.")
+
+    ai_response = ""
+    if should_route_to_trustllm:
+        try:
+            logger.info(f"Sending prompt to TrustLLM: {masked_prompt[:50]}...")
+            async with httpx.AsyncClient( ) as client:
+                trustllm_response = await client.post(
+                    TRUSTLLM_API_URL,
+                    json={
+                        "prompt": masked_prompt, # 마스킹된 프롬프트 전송
+                        "user_id": user_id,
+                        "session_id": request.session_id
+                    },
+                    timeout=300 # LLM 추론에 시간이 걸릴 수 있으므로 타임아웃 증가
+                )
+                trustllm_response.raise_for_status()
+                ai_response = trustllm_response.json()["response"]
+                logger.info(f"Received response from TrustLLM: {ai_response[:50]}...")
+                status = "SUCCESS_TRUSTLLM"
+        except httpx.RequestError as e:
+            logger.error(f"Error connecting to TrustLLM: {e}" )
+            status = "TRUSTLLM_NETWORK_ERROR"
+            ai_response = f"Error: Could not connect to internal LLM service. {e}"
+            block_reason = "TRUSTLLM_NETWORK_ERROR"
+        except httpx.HTTPStatusError as e:
+            logger.error(f"TrustLLM returned error: {e.response.status_code} - {e.response.text}" )
+            status = "TRUSTLLM_SERVICE_ERROR"
+            ai_response = f"Error: Internal LLM service returned an error. {e.response.status_code}"
+            block_reason = "TRUSTLLM_SERVICE_ERROR"
+        except Exception as e:
+            logger.error(f"Unexpected error from TrustLLM: {e}")
+            status = "TRUSTLLM_UNEXPECTED_ERROR"
+            ai_response = f"Error: An unexpected error occurred with internal LLM. {e}"
+            block_reason = "TRUSTLLM_UNEXPECTED_ERROR"
+    else:
+        # 기존 외부 AI 서비스 요청 로직
+        # ...
+
+라우팅 로직 설명:
+
+    TRUSTLLM_API_URL: TrustLLM의 /generate 엔드포인트를 가리키도록 환경 변수를 설정합니다.
+    라우팅 조건: 예시로 민감 정보 마스킹 여부, 특정 내부 키워드 포함 여부, 특정 사용자 ID를 기준으로 TrustLLM으로 라우팅할지 결정합니다. 실제 환경에서는 더 복잡한 정책 엔진이 필요할 수 있습니다.
+    TrustLLM 호출: should_route_to_trustllm이 True인 경우, httpx.AsyncClient를 사용하여 TrustLLM의 /generate 엔드포인트로 마스킹된 프롬프트를 전송하고 응답을 받습니다. LLM 추론은 시간이 오래 걸릴 수 있으므로 timeout을 충분히 길게 설정합니다.
+    에러 처리: TrustLLM 호출 중 발생할 수 있는 네트워크 오류나 서비스 오류를 처리하고, 적절한 상태 코드와 메시지를 반환합니다.
+    폴백: 현재 예시에서는 TrustLLM 호출 실패 시 오류를 반환하지만, 실제 구현에서는 외부 LLM으로 폴백하는 로직을 추가할 수 있습니다.
+
+4. Docker Compose를 이용한 통합 실행 (선택 사항 )
+PromptGate, DashIQ, TrustLLM을 모두 Docker Compose로 통합하여 실행하면 개발 및 테스트가 용이합니다. docker-compose.yml 파일에 TrustLLM 서비스를 추가하고, PromptGate 서비스에서 TrustLLM 서비스로 접근할 수 있도록 설정합니다.
+yaml
+
+# docker-compose.yml (전체 통합 예시)
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: aigov_logs
+      POSTGRES_USER: aigov_user
+      POSTGRES_PASSWORD: aigov_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  dashiq:
+    build:
+      context: ./dashiq_dir # DashIQ 코드가 있는 디렉토리
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://aigov_user:aigov_password@db:5432/aigov_logs
+    depends_on:
+      - db
+    volumes:
+      - ./dashiq_dir/static:/app/static
+      - ./dashiq_dir/templates:/app/templates
+      - ./dashiq_dir/main.py:/app/main.py
+
+  trustllm:
+    build:
+      context: ./trustllm_dir # TrustLLM 코드가 있는 디렉토리
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      TRUSTLLM_MODEL_NAME: EleutherAI/polyglot-ko-1.3b # 사용할 모델 이름
+    volumes:
+      - ./trustllm_dir:/app # TrustLLM 코드 마운트
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  promptgate:
+    build:
+      context: ./promptgate_dir # PromptGate 코드가 있는 디렉토리
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: your_openai_api_key
+      CLAUDE_API_KEY: your_claude_api_key
+      REBUFF_API_KEY: your_rebuff_api_key
+      DASH_IQ_LOG_API_URL: http://dashiq:8001/api/logs # DashIQ 서비스 이름으로 접근
+      TRUSTLLM_API_URL: http://trustllm:8002/generate # TrustLLM 서비스 이름으로 접근
+    depends_on:
+      - dashiq
+      - trustllm
+    volumes:
+      - ./promptgate_dir:/app # PromptGate 코드 마운트
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  db_data:
+
+    trustllm 서비스: TrustLLM 모듈을 위한 서비스입니다. deploy.resources.reservations.devices 설정을 통해 GPU를 할당합니다.
+    promptgate 서비스: TRUSTLLM_API_URL 환경 변수를 통해 TrustLLM 서비스로 접근할 수 있도록 설정합니다. depends_on을 통해 dashiq와 trustllm 서비스가 먼저 시작되도록 합니다.
+
+이 가이드를 통해 TrustLLM의 핵심 기능을 구현하고 PromptGate와 연동하는 방법을 이해하셨기를 바랍니다. 다음 단계에서는 TrustLLM 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다. 궁금한 점이나 추가적인 요구사항이 있다면 언제든지 알려주세요.
+
+todo. 
+TrustLLM의 핵심 기능 구현 가이드를 모두 제공해 드렸으니, 이제 TrustLLM 개발 환경 설정 및 테스트 가이드를 제공해 드리겠습니다.
+TrustLLM 개발 환경 설정 및 테스트 가이드
+이 가이드는 TrustLLM 모듈을 로컬 개발 환경에서 설정하고, 기본적인 기능을 테스트하는 방법을 설명합니다. 앞서 제공해 드린 main.py 파일을 기반으로 진행됩니다.
+1. 프로젝트 구조 확인
+먼저, TrustLLM 프로젝트 디렉토리가 다음과 같은 구조를 가지고 있는지 확인합니다.
+
+kra-aigov-trustllm/
+├── main.py
+└── requirements.txt
+
+    main.py: TrustLLM의 핵심 로직(LLM 로드, 텍스트 생성 API)이 구현된 FastAPI 애플리케이션 파일
+    requirements.txt: TrustLLM에 필요한 Python 라이브러리 목록
+
+2. requirements.txt 업데이트 확인
+main.py 코드에 추가된 transformers, torch, sentencepiece, accelerate 라이브러리가 requirements.txt에 모두 포함되어 있는지 다시 한번 확인합니다.
+text
+
+# requirements.txt
+fastapi
+uvicorn
+transformers
+torch
+sentencepiece
+accelerate
+
+3. 환경 변수 설정
+TrustLLM이 사용할 LLM 모델의 이름을 환경 변수 TRUSTLLM_MODEL_NAME으로 설정합니다. 이 모델은 Hugging Face Hub에서 다운로드됩니다. GPU 메모리 상황에 따라 적절한 모델을 선택해야 합니다. 예를 들어, EleutherAI/polyglot-ko-1.3b는 비교적 작은 모델이지만, 더 큰 모델을 사용하려면 더 많은 GPU 메모리가 필요합니다.
+bash
+
+export TRUSTLLM_MODEL_NAME="EleutherAI/polyglot-ko-1.3b"
+
+4. Dockerfile 생성 (선택 사항)
+TrustLLM을 Docker 컨테이너에서 실행하려면 다음과 같은 Dockerfile을 생성할 수 있습니다. GPU를 사용하기 위해 nvidia/cuda 기반 이미지를 사용하고, accelerate를 사용하여 모델 로딩 및 추론을 최적화합니다.
+dockerfile
+
+# Dockerfile (TrustLLM)
+
+# NVIDIA CUDA 기반 Ubuntu 이미지 사용
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04
+
+# 환경 변수 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED 1
+
+# 시스템 업데이트 및 필요한 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 python3.10-venv python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 가상 환경 설정
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3.10 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# requirements.txt 복사 및 Python 라이브러리 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 코드 복사
+COPY . .
+
+# 포트 노출
+EXPOSE 8002
+
+# TrustLLM 모델 이름 환경 변수 설정 (컨테이너 실행 시 오버라이드 가능)
+ENV TRUSTLLM_MODEL_NAME="EleutherAI/polyglot-ko-1.3b"
+
+# 애플리케이션 실행 명령어
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+
+5. Docker 이미지 빌드 및 컨테이너 실행
+프로젝트 루트 디렉토리(kra-aigov-trustllm/)에서 다음 명령어를 실행하여 TrustLLM Docker 이미지를 빌드합니다.
+bash
+
+docker build -t kra-aigov-trustllm .
+
+이미지 빌드가 완료되면 다음 명령어로 컨테이너를 실행합니다. GPU를 사용하려면 --gpus all 옵션을 포함해야 합니다.
+bash
+
+docker run -it --rm --gpus all \
+  -p 8002:8002 \
+  -v $(pwd):/app \
+  -e TRUSTLLM_MODEL_NAME="EleutherAI/polyglot-ko-1.3b" \
+  kra-aigov-trustllm
+
+컨테이너가 성공적으로 실행되면 uvicorn 서버가 시작되고, LLM 모델 로딩이 시작됩니다. 모델 로딩은 시간이 다소 소요될 수 있습니다.
+6. TrustLLM 기능 테스트
+컨테이너가 실행 중인 상태에서 다른 터미널을 열어 curl 명령어나 Postman, Insomnia와 같은 API 클라이언트를 사용하여 TrustLLM의 /generate 엔드포인트를 테스트할 수 있습니다.
+6.1. 텍스트 생성 요청 테스트
+bash
+
+curl -X POST http://localhost:8002/generate \
+-H "Content-Type: application/json" \
+-d 
+
+응답으로 LLM이 생성한 텍스트가 반환되는지 확인합니다.
+6.2. PromptGate와의 연동 테스트
+PromptGate의 main.py에서 TRUSTLLM_API_URL 환경 변수를 http://localhost:8002/generate (또는 Docker Compose 환경에서 http://trustllm:8002/generate )로 설정하고, PromptGate를 실행합니다. 이후 PromptGate의 라우팅 정책에 따라 TrustLLM으로 요청이 전달되는지 테스트합니다.
+예를 들어, PromptGate의 라우팅 정책이 민감 정보 포함 시 TrustLLM으로 라우팅하도록 설정되어 있다면, 다음과 같은 프롬프트로 PromptGate에 요청을 보냅니다.
+bash
+
+curl -X POST http://localhost:8000/process_prompt \
+-H "Content-Type: application/json" \
+-d 
+
+PromptGate의 로그에서 TrustLLM으로 요청이 라우팅되었음을 확인하고, TrustLLM의 로그에서 텍스트 생성이 이루어졌는지 확인합니다.
+7. 문제 해결 팁
+
+    GPU 메모리 부족: LLM 모델은 많은 GPU 메모리를 요구합니다. nvidia-smi 명령어로 GPU 메모리 사용량을 확인하고, 메모리가 부족하다면 더 작은 모델을 사용하거나, load_in_8bit=True 또는 load_in_4bit=True와 같은 양자화 옵션을 사용하여 모델의 메모리 사용량을 줄여야 합니다.
+    모델 로딩 시간: LLM 모델 로딩은 네트워크 속도와 모델 크기에 따라 시간이 오래 걸릴 수 있습니다. 충분히 기다려야 합니다.
+    환경 변수 확인: docker inspect <컨테이너_ID_또는_이름> 명령어로 컨테이너의 환경 변수가 올바르게 설정되었는지 확인합니다.
+    포트 충돌: netstat -tulnp | grep 8002 명령어로 호스트의 8002번 포트가 다른 프로세스에 의해 사용 중인지 확인합니다.
+
+이 가이드를 통해 TrustLLM 개발 환경을 설정하고 기본적인 기능을 테스트해 보십시오. 이 과정에서 발생하는 모든 문제에 대해 제가 지원해 드릴 수 있습니다. TrustLLM이 성공적으로 동작하는 것을 확인하면 다음 단계인 전체 모듈 통합 아키텍처 설명으로 넘어가겠습니다.
+
+todo. 
+이제 KRA-AiGov 솔루션의 모든 핵심 모듈(PromptGate, DashIQ, ShadowScan, TrustLLM)에 대한 개별 개발 가이드를 완료했습니다. 다음 단계로, 이 모듈들이 어떻게 상호작용하며 전체 시스템을 구성하는지 설명하는 전체 모듈 통합 아키텍처에 대해 설명해 드리겠습니다.
+전체 모듈 통합 아키텍처 설명
+KRA-AiGov 솔루션은 기업 내 AI 서비스 사용에 대한 보안, 통제, 가시성을 제공하는 통합 플랫폼입니다. 각 모듈은 독립적인 기능을 수행하면서도, 긴밀하게 연동되어 시너지를 창출합니다. 다음은 KRA-AiGov의 전체 통합 아키텍처를 시각화한 다이어그램입니다.
+mermaid
+mermaid
+각 모듈의 역할 및 상호작용:
+
+    PromptGate (프롬프트 게이트웨이)
+        역할: 기업 사용자와 AI 서비스(내부/외부) 간의 모든 AI 요청 및 응답을 중계하는 핵심 관문입니다. 프롬프트 필터링(민감 정보 마스킹, 프롬프트 인젝션 방어), 정책 기반 라우팅(외부 LLM vs. TrustLLM), 그리고 AI 사용 로그 기록을 담당합니다.
+        상호작용:
+            사용자: 사용자의 AI 요청을 직접 수신합니다.
+            외부 AI 서비스: 필터링 및 마스킹된 프롬프트를 외부 LLM(OpenAI, Claude 등)으로 전송하고 응답을 수신합니다.
+            TrustLLM: 라우팅 정책에 따라 내부 LLM으로 처리해야 할 프롬프트를 TrustLLM으로 전달하고 응답을 수신합니다.
+            DashIQ: 처리된 모든 AI 요청 및 응답에 대한 상세 로그를 DashIQ로 전송합니다.
+            인증/인가 모듈: 사용자의 신원을 확인하고 AI 서비스 사용 권한을 검증합니다.
+            정책 관리 모듈: 프롬프트 필터링 및 라우팅을 위한 정책 정보를 조회합니다.
+    DashIQ (대시보드 및 분석)
+        역할: KRA-AiGov 솔루션 전체에서 발생하는 모든 AI 사용 및 보안 이벤트를 중앙 집중식으로 수집, 저장, 분석 및 시각화하는 역할을 합니다. 기업 내 AI 사용 현황에 대한 투명한 가시성을 제공하고, 보안 감사 및 정책 준수 여부를 확인합니다.
+        상호작용:
+            PromptGate: AI 사용 로그를 HTTP POST 요청을 통해 수신합니다.
+            ShadowScan: Shadow AI 탐지 로그를 HTTP POST 요청을 통해 수신합니다.
+            관리자: 웹 UI를 통해 저장된 로그 데이터를 조회하고 시각화된 대시보드를 확인합니다.
+            인증/인가 모듈: 관리자 접근에 대한 인증 및 인가를 수행합니다.
+    ShadowScan (Shadow AI 탐지)
+        역할: 기업 네트워크 내에서 승인되지 않은 AI 서비스 사용(Shadow AI)을 탐지하고 관리자에게 알림을 제공합니다. 주로 DNS 로그 분석을 통해 AI 서비스 도메인으로의 비인가 접근을 식별합니다.
+        상호작용:
+            기업 네트워크: DNS 서버 로그 또는 네트워크 트래픽을 분석하여 AI 서비스 관련 활동을 탐지합니다.
+            DashIQ: 탐지된 Shadow AI 활동에 대한 로그를 DashIQ로 전송합니다.
+            관리자: 탐지된 Shadow AI 활동에 대해 직접 알림을 보냅니다.
+            정책 관리 모듈: Shadow AI 탐지를 위한 정책(예: 승인된 AI 서비스 도메인 목록)을 조회합니다.
+    TrustLLM (내부 LLM 서비스)
+        역할: 기업 내부에서 호스팅되는 LLM 모델을 통해 프롬프트에 대한 응답을 생성합니다. 민감 정보 처리, 비용 절감, 맞춤형 LLM 활용 등의 이점을 제공합니다.
+        상호작용:
+            PromptGate: PromptGate로부터 라우팅된 프롬프트 요청을 수신하고, LLM 추론 결과를 PromptGate로 반환합니다.
+            내부 LLM: Hugging Face Transformers 등을 통해 로드된 실제 LLM 모델과 상호작용하여 텍스트를 생성합니다.
+
+5. 기타 모듈 및 통합 고려사항
+
+    인증/인가 모듈 (Authentication/Authorization): 사용자와 관리자의 신원을 확인하고, 각 모듈 및 기능에 대한 접근 권한을 관리합니다. OAuth2, JWT(JSON Web Token) 등을 활용하여 구현할 수 있습니다. PromptGate와 DashIQ는 이 모듈과 연동하여 사용자 세션을 관리하고 권한을 검증해야 합니다.
+    정책 관리 모듈 (Policy Management): 기업의 AI 사용 정책(프롬프트 필터링 규칙, 라우팅 규칙, Shadow AI 탐지 규칙 등)을 중앙에서 관리하고, PromptGate 및 ShadowScan이 이 정책을 동적으로 조회하여 적용할 수 있도록 합니다. 별도의 API 서버 형태로 구현될 수 있습니다.
+    API 게이트웨이 (API Gateway): 모든 외부 요청이 단일 진입점(API Gateway)을 통해 KRA-AiGov 솔루션으로 들어오도록 구성할 수 있습니다. 이는 보안 강화, 트래픽 관리, 로드 밸런싱, API 버전 관리 등에 유용합니다. (예: Nginx, Kong, AWS API Gateway)
+    메시지 큐 (Message Queue): 대규모 로그 데이터나 비동기적인 처리가 필요한 경우, Kafka, RabbitMQ와 같은 메시지 큐를 도입하여 모듈 간의 결합도를 낮추고 시스템의 안정성과 확장성을 높일 수 있습니다. (예: PromptGate에서 DashIQ로 로그 전송 시 메시지 큐 사용)
+
+이 통합 아키텍처는 KRA-AiGov 솔루션의 전체적인 그림을 제공합니다. 각 모듈이 어떻게 연결되고 데이터를 주고받는지 이해하는 데 도움이 될 것입니다. 다음 단계에서는 모듈 간 데이터 흐름 및 연동 방안을 더 상세히 설명하고, API 게이트웨이 및 인증/인가에 대한 기본적인 가이드를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+KRA-AiGov 솔루션의 전체 모듈 통합 아키텍처에 대한 설명을 드렸으니, 이제 각 모듈 간의 구체적인 데이터 흐름과 연동 방안에 대해 상세히 설명해 드리겠습니다.
+모듈 간 데이터 흐름 및 연동 가이드
+KRA-AiGov 솔루션은 PromptGate, DashIQ, ShadowScan, TrustLLM 네 가지 핵심 모듈로 구성되며, 이들 모듈은 특정 목적을 가지고 데이터를 생성하고 소비하며 상호작용합니다. 효율적이고 안정적인 데이터 흐름은 솔루션의 성능과 신뢰성에 직결됩니다.
+1. PromptGate ↔ 외부 AI 서비스/TrustLLM (프롬프트/응답 흐름)
+이것은 KRA-AiGov 솔루션의 가장 기본적인 데이터 흐름입니다. 사용자의 AI 요청이 PromptGate를 통해 외부 AI 서비스 또는 내부 TrustLLM으로 전달되고, 그 응답이 다시 PromptGate를 거쳐 사용자에게 전달됩니다.
+
+    데이터 흐름: 사용자 요청 (프롬프트) → PromptGate → (필터링/마스킹/라우팅) → 외부 AI 서비스 또는 TrustLLM → (응답) → PromptGate → 사용자 응답
+    연동 방식: HTTP/HTTPS 기반의 RESTful API 호출
+        PromptGate → 외부 AI 서비스: 각 AI 서비스 제공업체(OpenAI, Anthropic 등)의 공식 API 클라이언트(Python SDK) 또는 httpx와 같은 HTTP 클라이언트를 사용하여 API를 호출합니다. API 키는 보안을 위해 환경 변수로 관리합니다.
+        PromptGate → TrustLLM: TrustLLM도 FastAPI 기반의 RESTful API를 제공하므로, httpx를 사용하여 비동기적으로 API를 호출합니다. TrustLLM의 내부 네트워크 주소(Docker Compose 환경에서는 서비스 이름 )를 사용합니다.
+    주요 데이터: original_prompt (원본 프롬프트), masked_prompt (마스킹된 프롬프트), ai_response (AI 응답), user_id, session_id, ai_service, model_name 등.
+    고려사항:
+        비동기 처리: PromptGate는 여러 AI 서비스 요청을 동시에 처리해야 하므로, asyncio와 httpx를 활용한 비동기 API 호출이 필수적입니다. 이는 응답 지연을 최소화하고 처리량을 높이는 데 기여합니다.
+        타임아웃 설정: 외부 AI 서비스 또는 TrustLLM 호출 시 적절한 타임아웃을 설정하여 무한 대기 상태를 방지하고, 서비스 가용성을 확보해야 합니다.
+        에러 처리 및 폴백: 외부 AI 서비스나 TrustLLM에서 오류가 발생했을 때, 사용자에게 적절한 오류 메시지를 반환하거나, 다른 AI 서비스로 폴백(Fallback )하는 로직을 구현하여 서비스 연속성을 유지해야 합니다.
+
+2. PromptGate → DashIQ (AI 사용 로그 흐름)
+PromptGate는 모든 AI 서비스 요청 및 응답에 대한 상세 정보를 로그로 기록하고, 이를 DashIQ로 전송하여 중앙 집중식으로 관리되도록 합니다.
+
+    데이터 흐름: PromptGate (로그 데이터 생성) → DashIQ (로그 수신 API)
+    연동 방식: HTTP POST 요청
+        PromptGate는 httpx를 사용하여 DashIQ의 /api/logs 엔드포인트로 JSON 형식의 로그 데이터를 비동기적으로 전송합니다.
+    주요 데이터: timestamp, user_id, ip_address, device_info, ai_service, model_name, original_prompt, masked_prompt, masked_details, ai_response, status (SUCCESS, BLOCKED 등 ), filter_status, filter_message, block_reason, session_id, request_duration_ms 등.
+    고려사항:
+        비동기 전송: 로그 전송이 PromptGate의 주 처리 흐름을 방해하지 않도록 asyncio.create_task()를 사용하여 비동기적으로 로그를 전송합니다.
+        로그 유실 방지: DashIQ 서버에 문제가 발생하여 로그 전송이 실패할 경우, 로그 데이터를 로컬 파일에 백업하거나 메시지 큐(예: Redis, Kafka)에 임시 저장하여 로그 유실을 방지하는 메커니즘을 구현해야 합니다.
+        데이터 스키마 일치: PromptGate에서 전송하는 로그 데이터의 스키마는 DashIQ의 AILog 모델과 정확히 일치해야 합니다. 스키마 변경 시 양쪽 모듈 모두 업데이트가 필요합니다.
+
+3. ShadowScan → DashIQ (Shadow AI 탐지 로그 흐름)
+ShadowScan은 기업 네트워크 내에서 탐지된 Shadow AI 활동에 대한 로그를 DashIQ로 전송합니다.
+
+    데이터 흐름: ShadowScan (탐지 로그 생성) → DashIQ (로그 수신 API)
+    연동 방식: HTTP POST 요청
+        ShadowScan 스크립트 또는 서비스는 httpx를 사용하여 DashIQ의 /api/logs 엔드포인트로 JSON 형식의 탐지 로그 데이터를 전송합니다.
+    주요 데이터: timestamp, user_id (호스트명/IP ), ip_address, ai_service ("Shadow AI"), original_prompt (DNS 쿼리 정보), status ("DETECTED"), filter_status ("SHADOW_AI_DETECTED"), filter_message 등.
+    고려사항:
+        로그 데이터 정규화: ShadowScan에서 생성되는 로그 데이터는 PromptGate의 로그와는 다른 특성을 가질 수 있으므로, DashIQ의 AILog 스키마에 맞게 데이터를 정규화하여 전송해야 합니다.
+        주기적 실행: ShadowScan은 DNS 로그 파일을 주기적으로 스캔하거나, 실시간으로 로그 스트림을 분석하여 탐지된 내용을 DashIQ로 전송해야 합니다.
+
+4. DashIQ ↔ PostgreSQL (데이터 저장/조회 흐름)
+DashIQ는 수신된 모든 로그 데이터를 PostgreSQL 데이터베이스에 저장하고, 웹 UI를 통해 이 데이터를 조회하여 시각화합니다.
+
+    데이터 흐름: DashIQ (로그 수신) → PostgreSQL (저장) / DashIQ (데이터 조회) ← PostgreSQL (데이터 반환)
+    연동 방식: SQLAlchemy (SQLModel) ORM
+        DashIQ의 FastAPI 애플리케이션은 SQLModel을 사용하여 PostgreSQL 데이터베이스와 상호작용합니다. Session 객체를 통해 데이터베이스 세션을 관리하고, add, commit, exec 등의 메서드를 사용하여 데이터를 삽입, 조회, 업데이트합니다.
+    주요 데이터: ai_logs 테이블에 저장되는 모든 로그 필드.
+    고려사항:
+        데이터베이스 연결 풀: 대량의 요청을 처리할 때 데이터베이스 연결을 효율적으로 관리하기 위해 연결 풀(Connection Pool)을 사용합니다. SQLModel은 기본적으로 이를 지원합니다.
+        인덱싱: 자주 조회되는 컬럼(예: timestamp, user_id, ai_service, status)에 적절한 인덱스를 설정하여 쿼리 성능을 최적화해야 합니다.
+        데이터 마이그레이션: 데이터베이스 스키마 변경 시 Alembic과 같은 마이그레이션 도구를 사용하여 스키마 변경 이력을 관리하고 안전하게 적용해야 합니다.
+
+5. DashIQ ↔ 웹 UI (데이터 시각화 흐름)
+DashIQ의 웹 UI는 백엔드 API를 호출하여 로그 데이터를 가져오고, 이를 웹 페이지에 시각적으로 표시합니다.
+
+    데이터 흐름: 웹 브라우저 (JavaScript) → DashIQ (데이터 조회 API) → 웹 브라우저 (HTML/CSS 렌더링)
+    연동 방식: HTTP GET 요청 (RESTful API)
+        웹 UI의 JavaScript 코드는 fetch API를 사용하여 DashIQ 백엔드의 /api/logs 및 /api/logs/summary 엔드포인트로 HTTP GET 요청을 보냅니다. 응답으로 받은 JSON 데이터를 파싱하여 HTML 요소를 동적으로 업데이트합니다.
+    주요 데이터: 요약 통계 데이터, 필터링된 로그 목록.
+    고려사항:
+        CORS (Cross-Origin Resource Sharing): 만약 웹 UI가 DashIQ 백엔드와 다른 도메인이나 포트에서 호스팅된다면, CORS 설정을 통해 웹 브라우저의 보안 정책을 우회해야 합니다. FastAPI에서 CORSMiddleware를 사용하여 설정할 수 있습니다.
+        캐싱: 자주 변경되지 않는 요약 데이터나 필터링 옵션 등은 클라이언트 측에서 캐싱하여 API 호출 횟수를 줄이고 성능을 향상시킬 수 있습니다.
+
+이처럼 KRA-AiGov의 각 모듈은 명확한 역할과 책임, 그리고 정의된 연동 방식을 통해 유기적으로 연결되어 전체 솔루션을 구성합니다. 다음 단계에서는 API 게이트웨이 및 인증/인가 가이드에 대해 설명해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+KRA-AiGov 솔루션의 모듈 간 데이터 흐름 및 연동 가이드를 제공해 드렸으니, 이제 KRA-AiGov 솔루션의 보안과 확장성을 강화하기 위한 API 게이트웨이 및 인증/인가 가이드에 대해 설명해 드리겠습니다.
+API 게이트웨이 및 인증/인가 가이드
+기업 환경에서 AI 서비스를 안전하고 효율적으로 운영하기 위해서는 강력한 보안 메커니즘과 체계적인 접근 제어가 필수적입니다. API 게이트웨이는 이러한 요구사항을 충족시키는 중요한 구성 요소이며, 인증(Authentication)과 인가(Authorization)는 시스템의 핵심 보안 기능입니다.
+1. API 게이트웨이 (API Gateway)
+API 게이트웨이는 모든 클라이언트 요청의 단일 진입점(Single Entry Point) 역할을 수행합니다. 이는 마이크로서비스 아키텍처에서 특히 유용하며, KRA-AiGov와 같이 여러 모듈로 구성된 시스템에 다양한 이점을 제공합니다.
+
+    역할 및 이점:
+        보안 강화: 외부로부터의 모든 요청을 한 곳에서 처리함으로써, 인증, 인가, 트래픽 필터링 등 보안 정책을 중앙 집중적으로 적용할 수 있습니다. 내부 서비스의 엔드포인트를 외부에 노출하지 않아 보안 취약점을 줄입니다.
+        트래픽 관리: 로드 밸런싱, 트래픽 라우팅, 속도 제한(Rate Limiting), 캐싱 등을 통해 시스템의 안정성과 성능을 향상시킵니다.
+        API 변환 및 조합: 클라이언트의 요청을 여러 내부 서비스로 분할하여 전달하고, 각 서비스의 응답을 조합하여 클라이언트에게 단일 응답으로 제공할 수 있습니다. 이는 클라이언트와 백엔드 서비스 간의 결합도를 낮춥니다.
+        모니터링 및 로깅: 모든 API 요청에 대한 상세 로그를 기록하고, 실시간 모니터링을 통해 시스템의 상태를 파악할 수 있습니다.
+        개발 편의성: 클라이언트는 단일 API 게이트웨이 엔드포인트만 알면 되므로, 내부 서비스의 변경이 클라이언트에 미치는 영향을 최소화합니다.
+    구현 고려사항:
+        기술 스택: Nginx, Kong, Apache APISIX와 같은 오픈소스 API 게이트웨이 솔루션을 사용하거나, 클라우드 서비스(AWS API Gateway, Azure API Management, Google Cloud API Gateway)를 활용할 수 있습니다. MVP 단계에서는 Nginx를 리버스 프록시로 사용하여 간단하게 구현하는 것을 고려할 수 있습니다.
+        라우팅 규칙: 각 KRA-AiGov 모듈(PromptGate, DashIQ)의 API 엔드포인트로 요청을 올바르게 라우팅하는 규칙을 설정해야 합니다. 예를 들어, /promptgate/* 요청은 PromptGate로, /dashiq/* 요청은 DashIQ로 전달하는 식입니다.
+        보안 정책 적용: API 게이트웨이 단에서 인증 토큰 검증, IP 화이트리스트/블랙리스트, 요청 본문 검증 등 기본적인 보안 정책을 적용할 수 있습니다.
+
+Nginx를 이용한 간단한 API 게이트웨이 예시 (nginx.conf)
+nginx
+
+# nginx.conf
+
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    # CORS 설정 (필요에 따라 추가 )
+    add_header Access-Control-Allow-Origin "*";
+    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
+    add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
+    add_header Access-Control-Expose-Headers "Content-Length,Content-Range";
+
+    # PromptGate 서비스 업스트림 정의
+    upstream promptgate_service {
+        server promptgate:8000; # Docker Compose 서비스 이름과 포트
+    }
+
+    # DashIQ 서비스 업스트림 정의
+    upstream dashiq_service {
+        server dashiq:8001; # Docker Compose 서비스 이름과 포트
+    }
+
+    # TrustLLM 서비스 업스트림 정의 (PromptGate에서 직접 호출하므로 외부 노출 불필요)
+    # upstream trustllm_service {
+    #     server trustllm:8002;
+    # }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # PromptGate로 라우팅
+        location /api/promptgate/ {
+            proxy_pass http://promptgate_service/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # DashIQ로 라우팅
+        location /api/dashiq/ {
+            proxy_pass http://dashiq_service/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # 기타 정적 파일 또는 기본 페이지 (선택 사항 )
+        location / {
+            root /usr/share/nginx/html;
+            index index.html index.htm;
+            try_files $uri $uri/ /index.html =404;
+        }
+
+        # OPTIONS 요청 처리 (CORS preflight)
+        if ($request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
+            add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
+            add_header Access-Control-Max-Age 1728000;
+            add_header Content-Type "text/plain charset=utf-8";
+            add_header Content-Length 0;
+            return 204;
+        }
+    }
+}
+
+이 nginx.conf 파일을 Docker Compose에 추가하여 API 게이트웨이 서비스를 구성할 수 있습니다. 클라이언트는 이제 http://localhost/api/promptgate/process_prompt 또는 http://localhost/api/dashiq/api/logs와 같이 API 게이트웨이의 단일 엔드포인트를 통해 각 모듈에 접근하게 됩니다.
+2. 인증 (Authentication )
+인증은 사용자의 신원을 확인하는 과정입니다. KRA-AiGov 솔루션에서는 기업 내부 사용자가 AI 서비스를 사용하기 전에 신원을 확인해야 합니다.
+
+    역할: 사용자가 누구인지 확인합니다.
+    구현 고려사항:
+        SSO (Single Sign-On) 연동: 기업 환경에서는 기존의 SSO 시스템(예: Active Directory, LDAP, Okta, Azure AD)과 연동하여 사용자의 인증을 처리하는 것이 가장 이상적입니다. 이는 사용자 편의성을 높이고 관리 부담을 줄입니다.
+        JWT (JSON Web Token): SSO 시스템에서 인증이 완료되면, JWT를 발급하여 클라이언트에게 전달하고, 클라이언트는 이 JWT를 PromptGate로의 모든 요청에 Authorization 헤더에 포함하여 보냅니다. PromptGate는 수신된 JWT의 유효성을 검증하여 사용자의 신원을 확인합니다.
+        API 키: 내부 시스템 간의 통신이나 특정 서비스 계정에는 API 키를 사용하여 인증할 수 있습니다. (예: ShadowScan이 DashIQ로 로그를 전송할 때)
+
+JWT 기반 인증 흐름 예시
+
+    사용자 로그인: 사용자가 기업의 SSO 시스템에 로그인합니다.
+    JWT 발급: SSO 시스템은 인증에 성공하면 사용자 정보를 담은 JWT를 발급하여 사용자 브라우저/클라이언트에 전달합니다.
+    요청 전송: 사용자는 AI 서비스 요청 시 발급받은 JWT를 Authorization: Bearer <JWT> 형태로 PromptGate로 전송합니다.
+    JWT 검증: PromptGate는 수신된 JWT의 서명, 만료 시간, 유효성 등을 검증합니다. (예: PyJWT 라이브러리 사용)
+    요청 처리: JWT 검증에 성공하면 PromptGate는 요청을 처리하고, 실패하면 401 Unauthorized 응답을 반환합니다.
+
+PromptGate에서의 JWT 검증 (예시)
+python
+
+# main.py (PromptGate - 일부 수정)
+
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt # pip install PyJWT
+import os
+
+# ... (기존 코드)
+
+# JWT 관련 설정
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-super-secret-key") # 실제 환경에서는 강력한 키 사용
+ALGORITHM = "HS256"
+
+security = HTTPBearer()
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        return user_id
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+@app.post("/process_prompt")
+async def process_prompt_endpoint(request: PromptRequest, user_id: str = Depends(get_current_user)):
+    # user_id를 사용하여 로깅 또는 정책 적용
+    logger.info(f"Processing prompt for user: {user_id}")
+    # ... (기존 로직)
+    return await process_prompt(request, user_id) # user_id를 함수로 전달
+
+# 기존 process_prompt 함수 시그니처 변경
+async def process_prompt(request: PromptRequest, user_id: str):
+    # ... (기존 로직)
+
+3. 인가 (Authorization)
+인가는 인증된 사용자가 특정 리소스나 기능에 접근할 권한이 있는지 확인하는 과정입니다.
+
+    역할: 사용자가 무엇을 할 수 있는지 결정합니다.
+    구현 고려사항:
+        역할 기반 접근 제어 (RBAC): 사용자에게 역할을 할당하고, 각 역할에 특정 권한을 부여합니다. 예를 들어, 일반 사용자는 AI 서비스 사용 권한만 가지고, 관리자는 DashIQ 대시보드 접근 및 정책 설정 권한을 가집니다.
+        속성 기반 접근 제어 (ABAC): 사용자, 리소스, 환경 속성 등을 기반으로 동적인 접근 제어 정책을 정의합니다. (예: 특정 부서의 사용자만 특정 AI 서비스 사용 가능)
+        정책 관리 모듈 연동: 인가 정책은 별도의 정책 관리 모듈에 저장하고, PromptGate나 DashIQ와 같은 서비스는 이 모듈로부터 정책을 조회하여 인가 결정을 내립니다.
+
+PromptGate에서의 인가 (예시)
+python
+
+# main.py (PromptGate - 일부 수정)
+
+# ... (기존 코드)
+
+# 인가 정책 (예시: 실제로는 DB 또는 정책 관리 모듈에서 로드)
+USER_ROLES = {
+    "user123": ["user"],
+    "admin456": ["user", "admin"],
+    "internal_user": ["user", "internal_llm_access"]
+}
+
+REQUIRED_ROLES_FOR_TRUSTLLM = ["internal_llm_access"]
+
+async def check_authorization(user_id: str, required_roles: list[str]):
+    user_roles = USER_ROLES.get(user_id, [])
+    if not any(role in user_roles for role in required_roles):
+        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
+    return True
+
+@app.post("/process_prompt")
+async def process_prompt_endpoint(request: PromptRequest, user_id: str = Depends(get_current_user)):
+    # ... (기존 라우팅 로직)
+
+    if should_route_to_trustllm:
+        # TrustLLM으로 라우팅하기 전에 인가 확인
+        await check_authorization(user_id, REQUIRED_ROLES_FOR_TRUSTLLM)
+        # ... (TrustLLM 호출 로직)
+    else:
+        # ... (외부 AI 서비스 호출 로직)
+
+    return await process_prompt(request, user_id) # user_id를 함수로 전달
+
+DashIQ에서의 인가 (예시)
+DashIQ의 관리자 대시보드 접근은 admin 역할이 있는 사용자에게만 허용하도록 설정할 수 있습니다.
+python
+
+# main.py (DashIQ - 일부 수정)
+
+# ... (기존 코드)
+
+async def get_current_admin_user(user_id: str = Depends(get_current_user)):
+    user_roles = USER_ROLES.get(user_id, [])
+    if "admin" not in user_roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user_id
+
+@app.get("/api/logs", response_model=List[AILog])
+async def get_logs(
+    user_id: str = Depends(get_current_admin_user), # 관리자만 접근 가능
+    skip: int = 0,
+    limit: int = 100,
+    # ... (기존 파라미터)
+):
+    # ... (기존 로직)
+
+4. 통합 고려사항
+
+    중앙 집중식 인증/인가 서비스: 장기적으로는 별도의 마이크로서비스 형태로 중앙 집중식 인증/인가 서비스를 구축하고, 각 KRA-AiGov 모듈이 이 서비스를 호출하여 인증/인가를 수행하도록 하는 것이 좋습니다. 이는 보안 정책의 일관성을 유지하고, 각 모듈의 복잡성을 줄이는 데 도움이 됩니다.
+    오류 처리 및 로깅: 인증/인가 실패 시 적절한 HTTP 상태 코드(401 Unauthorized, 403 Forbidden)를 반환하고, 상세한 오류 로그를 기록하여 보안 이벤트를 추적할 수 있도록 해야 합니다.
+    보안 모범 사례: JWT의 SECRET_KEY는 안전하게 관리되어야 하며, 환경 변수나 보안 볼트(Vault)에 저장해야 합니다. HTTPS를 사용하여 모든 통신을 암호화하는 것은 기본입니다.
+
+이 가이드를 통해 KRA-AiGov 솔루션에 API 게이트웨이와 강력한 인증/인가 메커니즘을 통합하는 데 필요한 기본적인 지식과 구현 방향을 이해하셨기를 바랍니다. 이로써 KRA-AiGov의 모든 핵심 모듈에 대한 개발 가이드가 완료되었습니다. 다음 단계에서는 전체 솔루션의 테스트 및 배포 가이드를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+
+테스트 및 배포 가이드 todo 리스트 작성 
+이제 KRA-AiGov 솔루션의 개발된 모듈들을 안정적으로 운영하기 위한 테스트 및 배포 가이드를 시작하겠습니다. 먼저, 효과적인 테스트 전략과 계획 수립에 대해 설명해 드리겠습니다.
+테스트 전략 및 계획 수립 (단위, 통합, E2E 테스트)
+소프트웨어 개발에서 테스트는 버그를 조기에 발견하고, 기능의 정확성을 보장하며, 시스템의 안정성과 신뢰성을 확보하는 데 필수적인 과정입니다. KRA-AiGov 솔루션은 여러 모듈로 구성된 복잡한 시스템이므로, 다양한 수준의 테스트를 체계적으로 수행하는 것이 중요합니다.
+1. 테스트 피라미드 모델
+효과적인 테스트 전략을 수립하기 위해 일반적으로 '테스트 피라미드' 모델을 따릅니다. 이 모델은 테스트의 종류와 비중을 계층적으로 보여줍니다.
+mermaid
+
+graph TD
+    A[E2E 테스트 (소수)]
+    B[통합 테스트 (중간)]
+    C[단위 테스트 (다수)]
+
+    C --> B
+    B --> A
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bfb,stroke:#333,stroke-width:2px
+
+    단위 테스트 (Unit Tests): 가장 하위 계층에 위치하며, 코드의 가장 작은 단위(함수, 메서드, 클래스)를 개별적으로 테스트합니다. 개발자가 직접 작성하며, 빠르고 자주 실행됩니다. 대부분의 테스트 케이스가 여기에 해당합니다.
+    통합 테스트 (Integration Tests): 중간 계층에 위치하며, 여러 단위 모듈이 결합하여 올바르게 상호작용하는지 테스트합니다. 예를 들어, PromptGate가 TrustLLM을 호출하고 응답을 받는 과정, DashIQ가 PostgreSQL에 데이터를 저장하는 과정 등이 해당됩니다.
+    E2E 테스트 (End-to-End Tests): 가장 상위 계층에 위치하며, 사용자 관점에서 전체 시스템의 흐름을 테스트합니다. 실제 사용자가 시스템을 사용하는 것과 동일한 방식으로 시나리오를 구성하여 테스트합니다. 예를 들어, 사용자가 PromptGate를 통해 AI에 질문하고, DashIQ 대시보드에서 해당 로그가 올바르게 표시되는지 확인하는 과정 등이 해당됩니다.
+
+2. KRA-AiGov를 위한 테스트 전략
+KRA-AiGov 솔루션의 특성을 고려하여 각 테스트 유형에 대한 전략을 수립합니다.
+2.1. 단위 테스트 (Unit Tests)
+
+    목표: 각 모듈 내의 개별 함수나 클래스가 예상대로 동작하는지 검증합니다.
+    대상:
+        PromptGate: 프롬프트 필터링 로직(금지 키워드, Rebuff 연동), 민감 정보 마스킹 로직, 라우팅 결정 로직의 개별 함수.
+        DashIQ: 로그 데이터 유효성 검증 로직, 데이터베이스 삽입/조회 로직, 요약/집계 로직.
+        ShadowScan: DNS 쿼리 파싱 로직, AI 도메인 탐지 로직.
+        TrustLLM: LLM 모델 로드 및 추론 함수, 프롬프트 포맷팅 로직.
+    도구: Python의 unittest 또는 pytest 프레임워크를 사용합니다. pytest는 더 간결하고 유연하여 현대적인 Python 프로젝트에서 널리 사용됩니다.
+    모범 사례:
+        격리: 각 단위 테스트는 다른 테스트나 외부 의존성(데이터베이스, 외부 API)으로부터 독립적으로 실행되어야 합니다. mock 객체를 사용하여 외부 의존성을 대체합니다.
+        빠른 실행: 단위 테스트는 매우 빠르게 실행되어야 합니다. 이는 개발자가 코드를 변경할 때마다 자주 테스트를 실행하여 피드백을 빠르게 받을 수 있도록 합니다.
+        코드 커버리지: 최소 80% 이상의 코드 커버리지를 목표로 합니다. pytest-cov와 같은 도구를 사용하여 코드 커버리지를 측정하고 보고합니다.
+
+2.2. 통합 테스트 (Integration Tests)
+
+    목표: 여러 모듈 또는 외부 시스템(데이터베이스, 외부 API) 간의 상호작용이 올바르게 동작하는지 검증합니다.
+    대상:
+        PromptGate ↔ 외부 AI 서비스: PromptGate가 실제 외부 AI 서비스(OpenAI, Claude)에 요청을 보내고 올바른 응답을 받는지.
+        PromptGate ↔ TrustLLM: PromptGate가 TrustLLM으로 프롬프트를 라우팅하고, TrustLLM이 응답을 생성하여 PromptGate로 반환하는 전체 흐름.
+        PromptGate → DashIQ: PromptGate가 생성한 로그가 DashIQ의 API를 통해 성공적으로 전송되고 DashIQ 데이터베이스에 저장되는지.
+        ShadowScan → DashIQ: ShadowScan이 탐지한 Shadow AI 로그가 DashIQ의 API를 통해 성공적으로 전송되고 DashIQ 데이터베이스에 저장되는지.
+        DashIQ ↔ PostgreSQL: DashIQ가 PostgreSQL 데이터베이스에 데이터를 저장하고 조회하는 기능.
+    도구: pytest와 함께 httpx (API 호출 ), SQLAlchemy (DB 연동), testcontainers (테스트용 DB 컨테이너 실행) 등을 활용할 수 있습니다.
+    모범 사례:
+        실제 의존성 사용: 가능한 한 실제 데이터베이스나 외부 API를 사용하여 테스트합니다. 단, 테스트 환경에서만 사용되는 격리된 인스턴스를 사용해야 합니다.
+        테스트 데이터 관리: 테스트를 위한 데이터를 준비하고, 테스트 완료 후에는 데이터를 정리하여 다음 테스트에 영향을 주지 않도록 합니다.
+        컨테이너 활용: Docker Compose를 사용하여 테스트 환경에 필요한 모든 서비스를 쉽게 구성하고 실행할 수 있습니다.
+
+2.3. E2E 테스트 (End-to-End Tests)
+
+    목표: 사용자 관점에서 KRA-AiGov 솔루션의 핵심 비즈니스 흐름이 처음부터 끝까지 올바르게 동작하는지 검증합니다.
+    대상:
+        사용자가 PromptGate를 통해 AI에 질문 → PromptGate가 프롬프트 처리 및 라우팅 → 외부 AI 또는 TrustLLM 응답 → DashIQ에 로그 기록 → DashIQ 웹 UI에서 해당 로그 확인.
+        Shadow AI 활동 발생 → ShadowScan이 탐지 → DashIQ에 로그 기록 → DashIQ 웹 UI에서 Shadow AI 로그 확인.
+    도구:
+        API 기반 E2E: httpx를 사용하여 각 모듈의 API를 직접 호출하며 시나리오를 구성합니다. 이는 UI 기반 E2E 테스트보다 빠르고 안정적입니다.
+        UI 기반 E2E (선택 사항 ): DashIQ 웹 UI의 복잡성이 증가하면 Selenium, Playwright, Cypress와 같은 도구를 사용하여 실제 브라우저에서 사용자 인터랙션을 시뮬레이션하는 테스트를 고려할 수 있습니다. (MVP 이후 고려)
+    모범 사례:
+        핵심 시나리오 집중: 모든 가능한 시나리오를 테스트하기보다는, 사용자에게 가장 중요한 핵심 비즈니스 흐름에 집중합니다.
+        안정성: UI 기반 E2E 테스트는 불안정할 수 있으므로, 가능한 한 API 기반 E2E 테스트를 우선적으로 고려합니다.
+        테스트 환경: 실제 운영 환경과 유사한 테스트 환경에서 실행하여 배포 후 발생할 수 있는 문제를 최소화합니다.
+
+3. 테스트 계획 수립
+테스트 전략을 바탕으로 구체적인 테스트 계획을 수립합니다.
+
+    테스트 범위: 각 모듈별로 어떤 기능을 어떤 수준으로 테스트할 것인지 명확히 정의합니다.
+    테스트 환경: 개발, 스테이징, 운영 환경에 대한 테스트 환경 구성 방안을 명시합니다. Docker Compose를 활용한 로컬 테스트 환경 구축이 중요합니다.
+    테스트 데이터: 각 테스트 유형에 필요한 테스트 데이터를 어떻게 생성하고 관리할 것인지 계획합니다.
+    테스트 도구: 사용할 테스트 프레임워크 및 라이브러리를 명시합니다.
+    테스트 자동화: CI/CD 파이프라인에 테스트를 통합하여 자동화할 계획을 세웁니다.
+    테스트 책임: 각 테스트 유형에 대한 책임자를 지정합니다.
+    테스트 일정: 개발 일정에 맞춰 테스트 일정을 수립합니다.
+
+이러한 테스트 전략과 계획을 통해 KRA-AiGov 솔루션의 품질을 체계적으로 관리하고, 안정적인 서비스를 제공할 수 있을 것입니다. 다음 단계에서는 테스트 환경 구축 및 테스트 케이스 작성 가이드를 제공해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+KRA-AiGov 솔루션의 테스트 전략 및 계획 수립에 대해 설명해 드렸으니, 이제 테스트 환경 구축 및 테스트 케이스 작성 가이드를 제공해 드리겠습니다. 이 가이드는 pytest를 중심으로 각 테스트 유형에 대한 구체적인 구현 방법을 다룹니다.
+테스트 환경 구축 및 테스트 케이스 작성 가이드
+효과적인 테스트를 위해서는 안정적이고 재현 가능한 테스트 환경을 구축하는 것이 중요합니다. KRA-AiGov는 Docker 기반으로 모듈화되어 있으므로, Docker Compose를 활용하여 통합 테스트 환경을 쉽게 구축할 수 있습니다.
+1. 테스트 환경 구축 (Docker Compose 활용)
+개발 환경에서 사용했던 docker-compose.yml 파일을 확장하여 테스트 전용 환경을 구성할 수 있습니다. 테스트 환경에서는 실제 데이터베이스를 사용하되, 테스트 실행 시마다 초기화되거나 격리된 데이터베이스를 사용하는 것이 좋습니다. 이를 위해 docker-compose.test.yml 파일을 별도로 생성하여 관리하는 것을 권장합니다.
+docker-compose.test.yml 예시
+yaml
+
+# docker-compose.test.yml
+version: '3.8'
+
+services:
+  # 테스트용 PostgreSQL 데이터베이스 서비스
+  test_db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: aigov_test_logs
+      POSTGRES_USER: aigov_test_user
+      POSTGRES_PASSWORD: aigov_test_password
+    ports:
+      - "5433:5432" # 호스트 포트를 5433으로 변경하여 개발 DB와 충돌 방지
+    volumes:
+      - test_db_data:/var/lib/postgresql/data # 테스트 데이터 볼륨
+
+  # DashIQ 테스트 서비스 (테스트용 DB 연결)
+  dashiq_test:
+    build:
+      context: ./dashiq_dir
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://aigov_test_user:aigov_test_password@test_db:5432/aigov_test_logs
+    depends_on:
+      - test_db
+
+  # TrustLLM 테스트 서비스 (GPU 사용 설정 포함)
+  trustllm_test:
+    build:
+      context: ./trustllm_dir
+      dockerfile: Dockerfile
+    environment:
+      TRUSTLLM_MODEL_NAME: EleutherAI/polyglot-ko-1.3b # 테스트용 경량 모델 사용 권장
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # PromptGate 테스트 서비스
+  promptgate_test:
+    build:
+      context: ./promptgate_dir
+      dockerfile: Dockerfile
+    environment:
+      OPENAI_API_KEY: your_test_openai_api_key # 테스트용 API 키
+      CLAUDE_API_KEY: your_test_claude_api_key
+      REBUFF_API_KEY: your_test_rebuff_api_key
+      DASH_IQ_LOG_API_URL: http://dashiq_test:8001/api/logs # 테스트용 DashIQ 연결
+      TRUSTLLM_API_URL: http://trustllm_test:8002/generate # 테스트용 TrustLLM 연결
+    depends_on:
+      - dashiq_test
+      - trustllm_test
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ShadowScan 테스트 서비스 (필요시 )
+  shadowscan_test:
+    build:
+      context: ./shadowscan_dir
+      dockerfile: Dockerfile
+    environment:
+      DASH_IQ_LOG_API_URL: http://dashiq_test:8001/api/logs
+    # volumes:
+    #   - ./shadowscan_dir/dns_query.log:/app/dns_query.log # 테스트용 로그 파일 마운트
+
+volumes:
+  test_db_data: # 테스트 데이터베이스 볼륨
+
+테스트 환경 실행:
+bash
+
+docker-compose -f docker-compose.test.yml up --build -d
+
+    -f docker-compose.test.yml: 테스트 전용 Compose 파일을 사용하도록 지정합니다.
+    --build: 서비스 이미지를 다시 빌드합니다.
+    -d: 백그라운드에서 컨테이너를 실행합니다.
+
+테스트가 완료되면 다음 명령어로 컨테이너를 종료하고 볼륨을 제거하여 깨끗한 상태를 유지합니다.
+bash
+
+docker-compose -f docker-compose.test.yml down -v
+
+2. 테스트 케이스 작성 가이드 (pytest 활용 )
+Python 프로젝트에서 pytest는 강력하고 유연한 테스트 프레임워크입니다. 각 모듈 디렉토리 내에 tests/ 디렉토리를 생성하고 테스트 파일을 작성하는 것을 권장합니다.
+2.1. 단위 테스트 (Unit Tests)
+단위 테스트는 각 함수의 독립적인 동작을 검증합니다. 외부 의존성은 unittest.mock 라이브러리를 사용하여 모의(mock) 처리합니다.
+예시: PromptGate의 민감 정보 마스킹 함수 단위 테스트
+promptgate_dir/main.py에 mask_sensitive_info 함수가 있다고 가정합니다.
+python
+
+# promptgate_dir/main.py (일부 발췌)
+import re
+
+def mask_sensitive_info(text: str) -> tuple[str, dict]:
+    masked_details = {}
+    # 이메일 마스킹
+    email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+    emails = re.findall(email_pattern, text)
+    if emails:
+        for email in emails:
+            text = text.replace(email, "[MASKED_EMAIL]")
+        masked_details["email"] = emails
+
+    # 전화번호 마스킹 (간단한 예시)
+    phone_pattern = r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"
+    phones = re.findall(phone_pattern, text)
+    if phones:
+        for phone in phones:
+            text = text.replace(phone, "[MASKED_PHONE]")
+        masked_details["phone"] = phones
+
+    return text, masked_details
+
+promptgate_dir/tests/test_unit.py 파일에 단위 테스트를 작성합니다.
+python
+
+# promptgate_dir/tests/test_unit.py
+
+import pytest
+from main import mask_sensitive_info # 테스트할 함수 import
+
+def test_mask_sensitive_info_email():
+    text = "My email is test@example.com and another is user@domain.co.kr"
+    masked_text, details = mask_sensitive_info(text)
+    assert masked_text == "My email is [MASKED_EMAIL] and another is [MASKED_EMAIL]"
+    assert "email" in details
+    assert len(details["email"]) == 2
+    assert "test@example.com" in details["email"]
+    assert "user@domain.co.kr" in details["email"]
+
+def test_mask_sensitive_info_phone():
+    text = "Call me at 010-1234-5678 or 02.987.6543"
+    masked_text, details = mask_sensitive_info(text)
+    assert masked_text == "Call me at [MASKED_PHONE] or [MASKED_PHONE]"
+    assert "phone" in details
+    assert len(details["phone"]) == 2
+    assert "010-1234-5678" in details["phone"]
+    assert "02.987.6543" in details["phone"]
+
+def test_mask_sensitive_info_no_sensitive_data():
+    text = "This is a normal sentence."
+    masked_text, details = mask_sensitive_info(text)
+    assert masked_text == "This is a normal sentence."
+    assert not details # details 딕셔너리가 비어있어야 함
+
+def test_mask_sensitive_info_mixed_data():
+    text = "Contact me at user@example.com or 010-1111-2222 for details."
+    masked_text, details = mask_sensitive_info(text)
+    assert masked_text == "Contact me at [MASKED_EMAIL] or [MASKED_PHONE] for details."
+    assert "email" in details
+    assert "phone" in details
+    assert len(details["email"]) == 1
+    assert len(details["phone"]) == 1
+
+테스트 실행:
+PromptGate 디렉토리(promptgate_dir)에서 다음 명령어를 실행합니다.
+bash
+
+pytest tests/test_unit.py
+
+2.2. 통합 테스트 (Integration Tests)
+통합 테스트는 여러 모듈 또는 외부 서비스 간의 상호작용을 검증합니다. httpx를 사용하여 API 호출을 시뮬레이션하고, 테스트용 데이터베이스를 사용합니다.
+예시: PromptGate → DashIQ 로그 전송 통합 테스트
+promptgate_dir/tests/test_integration.py 파일에 통합 테스트를 작성합니다. 이 테스트는 PromptGate가 DashIQ로 로그를 성공적으로 전송하는지 확인합니다.
+python
+
+# promptgate_dir/tests/test_integration.py
+
+import pytest
+import httpx
+import os
+import time
+
+# DashIQ 테스트 서비스의 URL (docker-compose.test.yml에 정의된 서비스 이름 사용 )
+DASH_IQ_TEST_URL = os.getenv("DASH_IQ_TEST_URL", "http://dashiq_test:8001" )
+
+@pytest.mark.asyncio
+async def test_promptgate_sends_log_to_dashiq():
+    # 1. PromptGate에 프롬프트 요청 보내기
+    promptgate_url = os.getenv("PROMPTGATE_TEST_URL", "http://promptgate_test:8000" )
+    test_prompt = "Hello AI, what is the weather like today?"
+    test_user_id = "test_user_integration"
+    test_session_id = "test_session_123"
+
+    payload = {
+        "prompt": test_prompt,
+        "user_id": test_user_id,
+        "session_id": test_session_id
+    }
+
+    async with httpx.AsyncClient( ) as client:
+        # PromptGate의 process_prompt 엔드포인트 호출 (인증은 일단 생략)
+        response = await client.post(f"{promptgate_url}/process_prompt", json=payload)
+        response.raise_for_status() # HTTP 오류 발생 시 예외 발생
+        assert response.status_code == 200
+        assert "response" in response.json()
+
+    # 2. DashIQ에서 로그가 제대로 저장되었는지 확인
+    # 로그 전송에 약간의 지연이 있을 수 있으므로 잠시 대기
+    time.sleep(2) 
+
+    async with httpx.AsyncClient( ) as client:
+        # DashIQ의 /api/logs 엔드포인트 호출하여 로그 조회
+        # 실제 환경에서는 DashIQ의 인증/인가를 거쳐야 함
+        dashiq_response = await client.get(f"{DASH_IQ_TEST_URL}/api/logs", params={
+            "user_id": test_user_id,
+            "session_id": test_session_id
+        })
+        dashiq_response.raise_for_status()
+        logs = dashiq_response.json()
+
+        assert len(logs) > 0
+        found_log = False
+        for log in logs:
+            if log.get("user_id") == test_user_id and log.get("original_prompt") == test_prompt:
+                found_log = True
+                break
+        assert found_log, "Log not found in DashIQ for the given user and prompt."
+
+테스트 실행:
+
+    docker-compose.test.yml을 사용하여 테스트 환경을 실행합니다.
+
+docker-compose -f docker-compose.test.yml up --build -d
+2.  PromptGate 디렉토리(`promptgate_dir`)에서 다음 명령어를 실행합니다.    bash
+PROMPTGATE_TEST_URL=http://localhost:8000 DASH_IQ_TEST_URL=http://localhost:8001 pytest tests/test_integration.py
+```
+(참고: localhost는 호스트 머신에서 접근할 때 사용하며, Docker Compose 네트워크 내부에서는 서비스 이름(promptgate_test, dashiq_test )을 사용합니다.)
+2.3. E2E 테스트 (End-to-End Tests)
+E2E 테스트는 사용자 시나리오를 기반으로 전체 시스템의 흐름을 검증합니다. API 기반 E2E 테스트는 각 모듈의 API를 직접 호출하여 시나리오를 구성합니다.
+예시: 사용자 AI 요청 → PromptGate 처리 → DashIQ 로그 확인 E2E 테스트
+e2e_tests/test_full_flow.py 파일에 E2E 테스트를 작성합니다. 이 테스트는 사용자가 PromptGate를 통해 AI에 질문하고, 해당 활동이 DashIQ에 올바르게 기록되는지 확인하는 시나리오입니다.
+python
+
+# e2e_tests/test_full_flow.py
+
+import pytest
+import httpx
+import os
+import time
+import uuid
+
+# API 엔드포인트 (API 게이트웨이를 통해 접근한다고 가정 )
+API_GATEWAY_URL = os.getenv("API_GATEWAY_URL", "http://localhost" )
+PROMPTGATE_ENDPOINT = f"{API_GATEWAY_URL}/api/promptgate/process_prompt"
+DASH_IQ_LOGS_ENDPOINT = f"{API_GATEWAY_URL}/api/dashiq/api/logs"
+
+@pytest.mark.asyncio
+async def test_user_ai_request_to_dashiq_logging_e2e():
+    # 1. 테스트 데이터 준비
+    test_user_id = f"e2e_user_{uuid.uuid4().hex[:8]}"
+    test_session_id = f"e2e_session_{uuid.uuid4().hex[:8]}"
+    original_prompt = "Can you summarize the latest AI governance trends?"
+
+    # 2. PromptGate를 통해 AI 요청 보내기
+    prompt_payload = {
+        "prompt": original_prompt,
+        "user_id": test_user_id,
+        "session_id": test_session_id
+    }
+    # JWT 토큰 (테스트용 또는 목업)
+    test_jwt_token = "your_mock_jwt_token_here" # 실제 JWT 발급 로직 필요
+
+    headers = {"Authorization": f"Bearer {test_jwt_token}"}
+
+    async with httpx.AsyncClient( ) as client:
+        promptgate_response = await client.post(PROMPTGATE_ENDPOINT, json=prompt_payload, headers=headers)
+        promptgate_response.raise_for_status()
+        assert promptgate_response.status_code == 200
+        assert "response" in promptgate_response.json()
+
+    # 3. DashIQ에 로그가 기록될 때까지 잠시 대기
+    time.sleep(3) # 로그 전송 및 DB 저장 시간 고려
+
+    # 4. DashIQ에서 로그 조회 및 검증
+    async with httpx.AsyncClient( ) as client:
+        # DashIQ 조회 시 관리자 권한 필요 (테스트용 JWT 또는 API 키 사용)
+        dashiq_headers = {"Authorization": f"Bearer {test_jwt_token}"} # DashIQ 관리자 권한 JWT
+        dashiq_response = await client.get(DASH_IQ_LOGS_ENDPOINT, params={
+            "user_id": test_user_id,
+            "session_id": test_session_id
+        }, headers=dashiq_headers)
+        dashiq_response.raise_for_status()
+        logs = dashiq_response.json()
+
+        assert len(logs) > 0, "No logs found in DashIQ."
+        found_e2e_log = False
+        for log in logs:
+            if log.get("user_id") == test_user_id and log.get("original_prompt") == original_prompt:
+                found_e2e_log = True
+                break
+        assert found_e2e_log, "E2E log not found in DashIQ for the given user and prompt."
+
+테스트 실행:
+
+    docker-compose.test.yml을 사용하여 테스트 환경을 실행합니다.
+
+docker-compose -f docker-compose.test.yml up --build -d
+2.  E2E 테스트 디렉토리(`e2e_tests`)에서 다음 명령어를 실행합니다.    bash
+API_GATEWAY_URL=http://localhost pytest test_full_flow.py
+```
+3. 테스트 케이스 작성 시 고려사항
+
+    명확한 목표: 각 테스트 케이스가 무엇을 검증하는지 명확히 정의합니다.
+    재현 가능성: 테스트는 언제 실행해도 동일한 결과를 보장해야 합니다.
+    독립성: 각 테스트 케이스는 다른 테스트 케이스에 영향을 주지 않아야 합니다.
+    빠른 피드백: 테스트는 가능한 한 빠르게 실행되어야 합니다.
+    경계 조건 테스트: 유효하지 않은 입력, 예외 상황 등 경계 조건에 대한 테스트를 포함합니다.
+    테스트 데이터 관리: 테스트를 위한 데이터를 생성하고, 테스트 완료 후에는 정리하는 로직을 포함합니다.
+    비동기 코드 테스트: pytest-asyncio 플러그인을 사용하여 비동기 함수를 테스트합니다.
+
+이 가이드를 통해 KRA-AiGov 솔루션의 테스트 환경을 구축하고, 단위, 통합, E2E 테스트 케이스를 작성하는 데 필요한 지식을 얻으셨기를 바랍니다. 다음 단계에서는 배포 전략 및 계획 수립에 대해 설명해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+KRA-AiGov 솔루션의 테스트 환경 구축 및 테스트 케이스 작성 가이드를 제공해 드렸으니, 이제 배포 전략 및 계획 수립에 대해 설명해 드리겠습니다. 이 가이드는 Docker Compose를 사용한 단일 서버 배포와 Kubernetes를 사용한 클러스터 환경 배포를 중심으로 다룹니다.
+배포 전략 및 계획 수립 (Docker Compose, Kubernetes)
+KRA-AiGov 솔루션을 실제 운영 환경에 배포하기 위해서는 안정성, 확장성, 관리 용이성을 고려한 체계적인 배포 전략이 필요합니다. 개발 환경에서 사용했던 Docker Compose는 소규모 또는 초기 배포에 적합하며, 더 큰 규모나 고가용성이 요구되는 환경에서는 Kubernetes와 같은 컨테이너 오케스트레이션 플랫폼을 고려해야 합니다.
+1. 배포 환경 고려사항
+배포 전략을 수립하기 전에 다음과 같은 환경적 요소를 고려해야 합니다.
+
+    예상 사용자 수 및 트래픽: 시스템이 처리해야 할 동시 사용자 수와 요청량을 예측하여 필요한 리소스를 산정합니다.
+    고가용성(High Availability) 요구사항: 시스템 중단 없이 서비스를 지속해야 하는 경우, 이중화 및 장애 복구 전략이 필요합니다.
+    확장성(Scalability) 요구사항: 사용자 증가에 따라 시스템을 유연하게 확장할 수 있어야 합니다.
+    보안 요구사항: 네트워크 보안, 데이터 암호화, 접근 제어 등 강력한 보안 정책을 적용해야 합니다.
+    운영 및 관리 편의성: 배포, 모니터링, 로깅, 업데이트 등의 운영 작업을 효율적으로 수행할 수 있어야 합니다.
+    비용: 인프라 구축 및 운영에 필요한 비용을 고려해야 합니다.
+
+2. Docker Compose를 이용한 단일 서버 배포
+Docker Compose는 여러 Docker 컨테이너로 구성된 애플리케이션을 단일 호스트에서 쉽게 정의하고 실행할 수 있는 도구입니다. 소규모 기업이나 초기 단계의 서비스 배포에 적합하며, 관리가 비교적 간단합니다.
+
+    장점:
+        간단한 설정: docker-compose.yml 파일을 통해 모든 서비스와 네트워크, 볼륨을 쉽게 정의할 수 있습니다.
+        빠른 배포: 단일 명령어로 전체 애플리케이션을 배포하고 실행할 수 있습니다.
+        개발 환경과의 일관성: 개발 환경에서 사용한 Docker Compose 설정을 운영 환경에서도 유사하게 활용할 수 있습니다.
+    단점:
+        단일 호스트 제약: 기본적으로 단일 호스트에서만 동작하므로, 해당 호스트에 장애가 발생하면 전체 서비스가 중단될 수 있습니다. (Docker Swarm을 사용하면 여러 호스트로 확장 가능)
+        제한된 확장성: 수평 확장이 Kubernetes만큼 유연하지 않습니다.
+        고급 기능 부족: 자동 복구, 롤링 업데이트, 서비스 디스커버리 등 고급 오케스트레이션 기능이 제한적입니다.
+
+운영용 docker-compose.prod.yml 예시
+개발 및 테스트용 docker-compose.yml 파일과 유사하지만, 운영 환경에 맞게 몇 가지 설정을 조정합니다.
+yaml
+
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  # API 게이트웨이 (Nginx)
+  api_gateway:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443" # HTTPS를 위한 포트
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro # Nginx 설정 파일 마운트
+      - ./nginx/certs:/etc/nginx/certs:ro # SSL/TLS 인증서 마운트
+    depends_on:
+      - promptgate
+      - dashiq
+    restart: always
+
+  # PostgreSQL 데이터베이스 (DashIQ용)
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aigov_logs}
+      POSTGRES_USER: ${POSTGRES_USER:-aigov_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aigov_password}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: always
+
+  # DashIQ 서비스
+  dashiq:
+    build:
+      context: ./dashiq_dir
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aigov_user}:${POSTGRES_PASSWORD:-aigov_password}@db:5432/${POSTGRES_DB:-aigov_logs}
+      JWT_SECRET_KEY: ${DASHIQ_JWT_SECRET_KEY:-your_dashiq_secret_key} # 운영용 시크릿 키
+    depends_on:
+      - db
+    restart: always
+
+  # TrustLLM 서비스
+  trustllm:
+    build:
+      context: ./trustllm_dir
+      dockerfile: Dockerfile
+    environment:
+      TRUSTLLM_MODEL_NAME: ${TRUSTLLM_MODEL_NAME:-EleutherAI/polyglot-ko-5.8b} # 운영용 모델
+      JWT_SECRET_KEY: ${TRUSTLLM_JWT_SECRET_KEY:-your_trustllm_secret_key}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # 또는 특정 GPU 수
+              capabilities: [gpu]
+    restart: always
+
+  # PromptGate 서비스
+  promptgate:
+    build:
+      context: ./promptgate_dir
+      dockerfile: Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      REBUFF_API_KEY: ${REBUFF_API_KEY}
+      DASH_IQ_LOG_API_URL: http://dashiq:8001/api/logs
+      TRUSTLLM_API_URL: http://trustllm:8002/generate
+      JWT_SECRET_KEY: ${PROMPTGATE_JWT_SECRET_KEY:-your_promptgate_secret_key}
+    depends_on:
+      - dashiq
+      - trustllm
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: always
+
+  # ShadowScan 서비스 (필요시 )
+  shadowscan:
+    build:
+      context: ./shadowscan_dir
+      dockerfile: Dockerfile
+    environment:
+      DASH_IQ_LOG_API_URL: http://dashiq:8001/api/logs
+      # DNS_LOG_FILE_PATH: /path/to/production/dns.log # 실제 DNS 로그 파일 경로
+    # volumes:
+    #   - /var/log/dns:/var/log/dns:ro # 실제 DNS 로그 디렉토리 마운트
+    restart: always
+
+volumes:
+  db_data:
+
+주요 변경사항:
+
+    API 게이트웨이 추가: Nginx를 사용하여 API 게이트웨이를 구성하고, HTTPS를 위한 포트(443 )와 SSL/TLS 인증서 설정을 포함합니다.
+    환경 변수 사용: 데이터베이스 접속 정보, API 키, JWT 시크릿 키 등 민감한 정보는 .env 파일이나 시스템 환경 변수를 통해 주입하도록 ${VARIABLE_NAME:-default_value} 형태로 변경합니다.
+    restart: always: 컨테이너가 예기치 않게 종료될 경우 자동으로 재시작하도록 설정합니다.
+    운영용 모델 및 설정: TrustLLM 모델 이름, 로그 파일 경로 등을 운영 환경에 맞게 설정합니다.
+
+배포 절차:
+
+    운영 서버 준비: Docker, Docker Compose, NVIDIA 드라이버 및 NVIDIA Container Toolkit이 설치된 운영 서버를 준비합니다.
+    코드 및 설정 파일 복사: KRA-AiGov 솔루션 코드, docker-compose.prod.yml, Nginx 설정 파일, SSL/TLS 인증서 등을 운영 서버에 복사합니다.
+    환경 변수 설정: 운영 서버에 필요한 환경 변수를 설정하거나 .env 파일을 생성합니다.
+    이미지 빌드 (선택 사항): 로컬에서 이미지를 빌드하여 Docker Hub와 같은 프라이빗 레지스트리에 푸시하고, 운영 서버에서는 이미지를 풀(pull)받아 사용할 수 있습니다. 또는 운영 서버에서 직접 빌드할 수도 있습니다.
+    애플리케이션 실행:
+
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+3. Kubernetes를 이용한 클러스터 환경 배포
+Kubernetes(K8s)는 컨테이너화된 애플리케이션을 자동으로 배포, 확장 및 관리하기 위한 오픈소스 플랫폼입니다. 대규모 서비스나 고가용성, 높은 확장성이 요구되는 환경에 적합합니다.
+
+    장점:
+        고가용성: 여러 노드에 걸쳐 서비스를 분산하고, 노드 장애 시 자동으로 다른 노드로 서비스를 이전하여 서비스 연속성을 보장합니다.
+        수평 확장: 트래픽 변화에 따라 서비스 인스턴스(Pod) 수를 자동으로 늘리거나 줄일 수 있습니다.
+        자동 복구: 컨테이너나 노드에 문제가 발생하면 자동으로 재시작하거나 교체합니다.
+        롤링 업데이트 및 롤백: 무중단으로 애플리케이션을 업데이트하고, 문제 발생 시 이전 버전으로 쉽게 롤백할 수 있습니다.
+        서비스 디스커버리 및 로드 밸런싱: 내부 서비스 간의 통신을 위한 서비스 디스커버리와 외부 트래픽 분산을 위한 로드 밸런싱 기능을 제공합니다.
+    단점:
+        복잡성: Docker Compose에 비해 학습 곡선이 가파르고, 클러스터 설정 및 관리가 복잡합니다.
+        리소스 요구량: Kubernetes 클러스터를 운영하기 위해서는 더 많은 리소스가 필요합니다.
+
+Kubernetes 배포를 위한 주요 구성 요소:
+KRA-AiGov의 각 모듈은 Kubernetes에서 다음과 같은 리소스로 배포될 수 있습니다.
+
+    Deployment: 각 모듈(PromptGate, DashIQ, TrustLLM, ShadowScan, PostgreSQL, Nginx)의 원하는 상태(레플리카 수, 이미지 버전 등)를 정의하고 관리합니다. GPU를 사용하는 모듈(TrustLLM, PromptGate)의 경우, nvidia.com/gpu 리소스를 요청하도록 설정해야 합니다.
+    Service: 각 Deployment에 대한 안정적인 네트워크 엔드포인트(IP 주소 및 포트)를 제공합니다. 내부 서비스 간 통신(예: PromptGate → TrustLLM)이나 외부 트래픽을 위한 로드 밸런서(LoadBalancer Service)를 정의합니다.
+    Ingress: HTTP/HTTPS 요청을 클러스터 내부의 서비스로 라우팅하는 규칙을 정의합니다. API 게이트웨이 역할을 수행하며, SSL/TLS 종료, 경로 기반 라우팅 등을 지원합니다.
+    ConfigMap: 애플리케이션 설정(예: Nginx 설정, API 엔드포인트 URL)을 저장하고 컨테이너에 주입합니다.
+    Secret: API 키, 데이터베이스 암호, JWT 시크릿 키 등 민감한 정보를 안전하게 저장하고 컨테이너에 주입합니다.
+    PersistentVolume (PV) 및 PersistentVolumeClaim (PVC): PostgreSQL 데이터베이스와 같이 영구적인 데이터 저장이 필요한 경우 PV와 PVC를 사용하여 스토리지 볼륨을 관리합니다.
+    Namespace: KRA-AiGov 솔루션 관련 리소스를 논리적으로 격리하기 위해 별도의 네임스페이스(예: kra-aigov)를 사용하는 것이 좋습니다.
+
+Kubernetes 배포 절차 (개요):
+
+    Kubernetes 클러스터 준비: 온프레미스 환경에 직접 구축하거나, 클라우드 제공업체(AWS EKS, GCP GKE, Azure AKS)의 관리형 Kubernetes 서비스를 사용합니다.
+    Docker 이미지 빌드 및 레지스트리 푸시: 각 모듈의 Docker 이미지를 빌드하여 Docker Hub 또는 프라이빗 컨테이너 레지스트리(예: Harbor, AWS ECR, GCP GCR)에 푸시합니다.
+    Kubernetes 매니페스트 파일 작성: 각 모듈에 대한 Deployment, Service, Ingress, ConfigMap, Secret 등의 YAML 파일을 작성합니다.
+    매니페스트 적용: kubectl apply -f <매니페스트_파일_디렉토리> 명령어를 사용하여 Kubernetes 클러스터에 리소스를 배포합니다.
+    상태 확인 및 테스트: kubectl get pods, kubectl get services, kubectl logs 등의 명령어를 사용하여 배포 상태를 확인하고, E2E 테스트를 수행합니다.
+
+예시: PromptGate Deployment YAML (일부)
+yaml
+
+# promptgate-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: promptgate
+  namespace: kra-aigov
+  labels:
+    app: promptgate
+spec:
+  replicas: 2 # 원하는 레플리카 수
+  selector:
+    matchLabels:
+      app: promptgate
+  template:
+    metadata:
+      labels:
+        app: promptgate
+    spec:
+      containers:
+      - name: promptgate
+        image: your-registry/promptgate:latest # 레지스트리의 이미지 경로
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: promptgate-secrets # API 키, JWT 시크릿 등
+        - configMapRef:
+            name: promptgate-config # DashIQ, TrustLLM 엔드포인트 등
+        resources:
+          limits:
+            nvidia.com/gpu: 1 # GPU 요청
+          requests:
+            nvidia.com/gpu: 1
+        # livenessProbe, readinessProbe 설정 추가 권장
+
+4. 배포 계획 수립
+
+    초기 배포: MVP 단계에서는 Docker Compose를 사용하여 단일 서버에 배포하는 것을 목표로 합니다. 이를 통해 빠르게 서비스를 시작하고 사용자 피드백을 받을 수 있습니다.
+    확장 단계: 사용자 증가 및 서비스 안정성 요구가 높아지면 Kubernetes로의 전환을 계획합니다. 이때, 데이터 마이그레이션, 무중단 전환 전략 등을 고려해야 합니다.
+    환경 분리: 개발(Development), 스테이징(Staging), 운영(Production) 환경을 명확히 분리하고, 각 환경에 맞는 배포 파이프라인을 구축합니다.
+    보안 강화: 운영 환경에서는 네트워크 정책, 보안 그룹, SSL/TLS 암호화, 정기적인 보안 취약점 스캔 등 보안 모범 사례를 철저히 준수합니다.
+    백업 및 복구: PostgreSQL 데이터베이스와 같은 중요한 데이터는 정기적으로 백업하고, 재해 발생 시 신속하게 복구할 수 있는 계획을 수립합니다.
+
+이 가이드를 통해 KRA-AiGov 솔루션의 배포 전략과 계획을 수립하는 데 필요한 정보를 얻으셨기를 바랍니다. 다음 단계에서는 CI/CD 파이프라인 구축 가이드에 대해 설명해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+KRA-AiGov 솔루션의 배포 전략 및 계획 수립에 대해 설명해 드렸으니, 이제 CI/CD 파이프라인 구축 가이드에 대해 설명해 드리겠습니다. CI/CD는 소프트웨어 개발 프로세스를 자동화하여 개발 속도를 높이고, 코드 품질을 향상시키며, 배포의 안정성을 확보하는 데 필수적인 요소입니다.
+CI/CD 파이프라인 구축 가이드
+CI/CD는 Continuous Integration (지속적 통합)과 Continuous Delivery/Deployment (지속적 제공/배포)의 약자입니다. 이는 개발자가 코드 변경 사항을 중앙 저장소에 자주 병합하고, 이 변경 사항에 대해 자동화된 빌드, 테스트, 배포 프로세스를 거치는 개발 방법론입니다.
+1. CI/CD의 개념 및 이점
+
+    지속적 통합 (Continuous Integration, CI):
+        개념: 개발자들이 각자 작업한 코드를 주기적으로(하루에 여러 번) 메인 브랜치에 병합(Merge)하고, 병합될 때마다 자동화된 빌드 및 테스트를 수행하여 코드 충돌이나 오류를 조기에 발견하는 과정입니다.
+        이점: 통합 문제 조기 발견, 코드 품질 향상, 개발자 간 협업 증진, 버그 수정 비용 감소.
+    지속적 제공 (Continuous Delivery, CD):
+        개념: CI 단계를 통과한 코드를 항상 배포 가능한 상태로 유지하는 것을 목표로 합니다. 즉, 언제든지 수동으로 버튼만 누르면 운영 환경에 배포할 수 있는 상태를 의미합니다.
+        이점: 배포 프로세스 간소화, 배포 위험 감소, 시장 출시 시간 단축.
+    지속적 배포 (Continuous Deployment, CD):
+        개념: 지속적 제공에서 한 단계 더 나아가, CI 단계를 통과한 코드를 자동으로 운영 환경에 배포하는 것을 의미합니다. 사람의 개입 없이 모든 과정이 자동화됩니다.
+        이점: 배포 속도 극대화, 수동 오류 제거, 지속적인 피드백 루프.
+
+2. KRA-AiGov를 위한 CI/CD 파이프라인 단계
+KRA-AiGov 솔루션은 여러 마이크로서비스(PromptGate, DashIQ, TrustLLM, ShadowScan)로 구성되어 있으므로, 각 모듈별로 독립적인 CI/CD 파이프라인을 구축하거나, 모노레포(Monorepo) 형태로 관리하며 통합 파이프라인을 구축할 수 있습니다. 여기서는 일반적인 단계를 설명합니다.
+mermaid
+
+graph TD
+    A[코드 변경 (개발자)] --> B{Git Push}
+    B --> C[CI/CD 트리거]
+    C --> D[코드 체크아웃]
+    D --> E[의존성 설치]
+    E --> F[코드 빌드 (Docker Image)]
+    F --> G[단위 테스트 실행]
+    G --> H{테스트 성공?}
+    H -- Yes --> I[Docker Image 푸시 (Registry)]
+    H -- No --> J[실패 알림]
+    I --> K[통합 테스트 실행]
+    K --> L{테스트 성공?}
+    L -- Yes --> M[E2E 테스트 실행]
+    L -- No --> J
+    M --> N{테스트 성공?}
+    N -- Yes --> O[배포 (Staging/Production)]
+    N -- No --> J
+    O --> P[배포 성공 알림]
+    O --> Q[배포 실패 알림]
+
+    코드 변경 및 Git Push: 개발자가 코드를 수정하고 Git 저장소(GitHub, GitLab 등)에 푸시합니다.
+    CI/CD 트리거: Git Push 이벤트(예: main 브랜치에 푸시되거나 Pull Request가 생성될 때)가 CI/CD 파이프라인을 자동으로 시작합니다.
+    코드 체크아웃: 저장소에서 최신 코드를 가져옵니다.
+    의존성 설치: 프로젝트에 필요한 라이브러리 및 도구를 설치합니다.
+    코드 빌드 (Docker Image): 각 모듈의 Dockerfile을 사용하여 Docker 이미지를 빌드합니다. GPU를 사용하는 모듈의 경우, NVIDIA CUDA 기반 이미지를 사용하고 GPU 빌드 환경을 고려해야 합니다.
+    단위 테스트 실행: 앞서 작성한 단위 테스트를 실행하여 개별 코드의 기능을 검증합니다.
+    Docker Image 푸시 (Registry): 단위 테스트를 통과한 Docker 이미지를 Docker Hub, GitHub Container Registry, Quay.io 등 컨테이너 레지스트리에 푸시합니다.
+    통합 테스트 실행: 빌드된 Docker 이미지를 사용하여 통합 테스트 환경(Docker Compose 또는 Kubernetes)을 구성하고, 모듈 간의 상호작용을 테스트합니다.
+    E2E 테스트 실행: 실제 사용자 시나리오를 기반으로 전체 시스템의 엔드-투-엔드 기능을 테스트합니다.
+    배포 (Staging/Production): 모든 테스트를 통과한 이미지를 스테이징 또는 운영 환경에 배포합니다. Docker Compose 또는 Kubernetes를 사용하여 배포를 자동화합니다.
+    알림: 빌드, 테스트, 배포의 성공 또는 실패 여부를 개발팀에 알립니다.
+
+3. CI/CD 도구 선택
+다양한 CI/CD 도구가 있으며, 프로젝트의 규모, 팀의 선호도, 기존 인프라에 따라 적절한 도구를 선택할 수 있습니다.
+
+    GitHub Actions: GitHub 저장소를 사용하는 경우 가장 통합하기 쉽고 강력한 CI/CD 도구입니다. YAML 기반으로 워크플로우를 정의하며, 다양한 액션(Action)을 통해 복잡한 작업을 자동화할 수 있습니다.
+    GitLab CI/CD: GitLab 저장소를 사용하는 경우 내장된 CI/CD 기능입니다. .gitlab-ci.yml 파일을 통해 파이프라인을 정의하며, 자체 호스팅 러너(Runner)를 통해 GPU를 사용하는 빌드/테스트 환경을 구축할 수 있습니다.
+    Jenkins: 가장 오래되고 널리 사용되는 오픈소스 CI/CD 자동화 서버입니다. 유연성이 높고 플러그인 생태계가 풍부하지만, 설정 및 관리가 복잡할 수 있습니다.
+    CircleCI, Travis CI, Azure DevOps, AWS CodePipeline: 클라우드 기반의 CI/CD 서비스로, 설정이 간편하고 확장성이 좋습니다.
+
+KRA-AiGov는 GitHub에 코드를 올릴 예정이라고 하셨으므로, 여기서는 GitHub Actions를 예시로 설명하겠습니다.
+4. GitHub Actions를 이용한 CI/CD 파이프라인 예시
+각 KRA-AiGov 모듈(예: PromptGate)의 저장소 루트에 .github/workflows/ 디렉토리를 생성하고, 그 안에 YAML 파일을 작성합니다. (예: promptgate_ci_cd.yml)
+promptgate_ci_cd.yml 예시
+yaml
+
+# .github/workflows/promptgate_ci_cd.yml
+
+name: PromptGate CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'promptgate_dir/**' # promptgate_dir 내부 파일 변경 시에만 트리거
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'promptgate_dir/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # GPU가 필요한 경우, 자체 호스팅 러너(self-hosted runner) 사용
+    # runs-on: [self-hosted, linux, x64, gpu]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r promptgate_dir/requirements.txt
+        pip install pytest pytest-asyncio httpx
+
+    - name: Run unit tests
+      run: pytest promptgate_dir/tests/test_unit.py
+
+    - name: Build Docker image
+      run: |
+        docker build -t promptgate-image:latest ./promptgate_dir
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Push Docker image to Docker Hub
+      run: docker push promptgate-image:latest
+
+  integration-and-e2e-test:
+    needs: build-and-test # build-and-test Job이 성공해야 실행
+    runs-on: ubuntu-latest
+    # GPU가 필요한 경우, 자체 호스팅 러너(self-hosted runner ) 사용
+    # runs-on: [self-hosted, linux, x64, gpu]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Pull Docker images
+      run: |
+        docker pull promptgate-image:latest
+        # 다른 모듈 이미지도 필요하면 pull
+        # docker pull dashiq-image:latest
+        # docker pull trustllm-image:latest
+
+    - name: Set up test environment with Docker Compose
+      run: |
+        # docker-compose.test.yml 파일이 프로젝트 루트에 있다고 가정
+        docker-compose -f docker-compose.test.yml up --build -d
+        sleep 30 # 서비스 시작 대기
+
+    - name: Run integration tests
+      run: |
+        # 환경 변수 설정 (테스트 환경의 서비스 URL)
+        export PROMPTGATE_TEST_URL=http://localhost:8000
+        export DASH_IQ_TEST_URL=http://localhost:8001
+        export TRUSTLLM_TEST_URL=http://localhost:8002
+        pytest promptgate_dir/tests/test_integration.py
+
+    - name: Run E2E tests
+      run: |
+        export API_GATEWAY_URL=http://localhost
+        pytest e2e_tests/test_full_flow.py
+
+    - name: Clean up Docker Compose environment
+      if: always( )
+      run: docker-compose -f docker-compose.test.yml down -v
+
+  deploy-to-staging:
+    needs: integration-and-e2e-test # 통합 및 E2E 테스트 Job이 성공해야 실행
+    runs-on: ubuntu-latest
+    environment: staging # GitHub 환경 사용 (보안 강화)
+    # GPU가 필요한 경우, 자체 호스팅 러너(self-hosted runner) 사용
+    # runs-on: [self-hosted, linux, x64, gpu]
+
+    steps:
+    - name: Deploy to Staging
+      run: |
+        # SSH를 통해 스테이징 서버에 접속하여 Docker Compose 배포 명령 실행
+        # 또는 Kubernetes 클러스터에 kubectl apply 명령 실행
+        echo "Deploying PromptGate to staging environment..."
+        # 예시: ssh user@staging-server "cd /path/to/app && docker-compose -f docker-compose.prod.yml up -d"
+        # 실제 배포 스크립트 또는 kubectl 명령어가 여기에 들어갑니다.
+
+  deploy-to-production:
+    needs: deploy-to-staging # 스테이징 배포가 성공해야 실행
+    runs-on: ubuntu-latest
+    environment: production # GitHub 환경 사용 (보안 강화)
+    # GPU가 필요한 경우, 자체 호스팅 러너(self-hosted runner) 사용
+    # runs-on: [self-hosted, linux, x64, gpu]
+
+    # 수동 승인 필요 (지속적 배포가 아닌 지속적 제공을 원할 경우)
+    # environment:
+    #   name: production
+    #   url: https://your-production-url.com
+    #   required_contexts: [manual-approval]
+
+    steps:
+    - name: Deploy to Production
+      run: |
+        echo "Deploying PromptGate to production environment..."
+        # 실제 배포 스크립트 또는 kubectl 명령어가 여기에 들어갑니다.
+
+주요 고려사항:
+
+    paths 필터링: on.push.paths를 사용하여 특정 모듈의 코드 변경 시에만 해당 모듈의 CI/CD 파이프라인이 트리거되도록 설정합니다. 이는 모노레포 환경에서 효율적입니다.
+    runs-on (러너 선택 ): GitHub Actions의 기본 러너는 GPU를 제공하지 않습니다. TrustLLM이나 PromptGate와 같이 GPU가 필요한 빌드/테스트/배포 단계에서는 **자체 호스팅 러너(Self-hosted Runner)**를 설정하여 GPU가 탑재된 게임용 노트북(또는 별도의 서버)을 GitHub Actions 워크플로우에 연결해야 합니다. GitHub Actions 자체 호스팅 러너 추가
+    시크릿 관리: Docker Hub 로그인 정보, 클라우드 API 키, SSH 키 등 민감한 정보는 GitHub Secrets에 저장하고 secrets.DOCKER_USERNAME과 같이 안전하게 사용합니다.
+    환경 (Environments): GitHub Environments를 사용하여 배포 환경(staging, production)을 정의하고, 환경별로 다른 시크릿, 보호 규칙(수동 승인 등)을 적용할 수 있습니다.
+    needs: Job 간의 의존성을 설정하여 특정 Job이 성공적으로 완료된 후에 다음 Job이 실행되도록 합니다.
+    if: always(): Clean up Docker Compose environment 스텝처럼, 이전 스텝의 성공/실패 여부와 관계없이 항상 실행되어야 하는 스텝에 사용합니다.
+    배포 스크립트: Deploy to Staging 및 Deploy to Production 스텝에는 실제 배포 로직(SSH를 통한 원격 명령 실행, kubectl 명령 실행 등)이 포함되어야 합니다.
+
+5. CI/CD 모범 사례
+
+    작고 빈번한 커밋: 작은 단위로 자주 커밋하고 푸시하여 통합 문제를 최소화합니다.
+    모든 테스트 자동화: 수동 테스트를 최소화하고, 가능한 모든 테스트를 자동화하여 파이프라인에 포함합니다.
+    빠른 피드백: 파이프라인 실행 시간을 최소화하여 개발자가 빠르게 피드백을 받을 수 있도록 합니다.
+    환경 일관성: 개발, 테스트, 운영 환경 간의 일관성을 유지하여
+
+todo. 
+KRA-AiGov 솔루션의 CI/CD 파이프라인 구축 가이드를 제공해 드렸으니, 이제 모니터링 및 로깅 시스템 구축 가이드에 대해 설명해 드리겠습니다. 안정적인 서비스 운영을 위해서는 시스템의 상태를 지속적으로 감시하고, 발생하는 모든 이벤트를 기록하여 문제 발생 시 신속하게 원인을 파악하고 해결하는 것이 필수적입니다.
+모니터링 및 로깅 시스템 구축 가이드
+모니터링과 로깅은 소프트웨어 시스템의 건강 상태를 파악하고, 성능 병목 현상을 식별하며, 보안 위협을 감지하고, 문제 발생 시 디버깅을 돕는 중요한 운영 도구입니다. KRA-AiGov 솔루션은 여러 마이크로서비스로 구성되어 있으므로, 중앙 집중식 모니터링 및 로깅 시스템을 구축하는 것이 중요합니다.
+1. 로깅 (Logging)
+로깅은 애플리케이션 및 시스템에서 발생하는 이벤트를 기록하는 과정입니다. KRA-AiGov에서는 각 모듈에서 발생하는 다양한 유형의 로그를 수집하고 중앙 집중식으로 관리해야 합니다.
+
+    로그 유형:
+        애플리케이션 로그: PromptGate, DashIQ, TrustLLM, ShadowScan 등 각 모듈에서 발생하는 비즈니스 로직 관련 로그 (예: 프롬프트 처리 성공/실패, 민감 정보 마스킹, Shadow AI 탐지 등).
+        시스템 로그: 운영체제, Docker 컨테이너, Nginx 등 인프라 수준에서 발생하는 로그 (예: CPU/메모리 사용량, 네트워크 트래픽, 컨테이너 시작/종료 등).
+        보안 로그: 인증/인가 시도, 정책 위반, 비정상적인 접근 시도 등 보안 관련 이벤트 로그.
+    로그 레벨: 로그는 심각도에 따라 다양한 레벨로 분류됩니다. (예: DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        DEBUG: 개발 및 디버깅을 위한 상세 정보.
+        INFO: 애플리케이션의 일반적인 동작 흐름 정보.
+        WARNING: 잠재적인 문제 발생 가능성 경고.
+        ERROR: 예상치 못한 오류 발생.
+        CRITICAL: 시스템이 정상적으로 동작할 수 없는 심각한 오류.
+    로그 형식: 로그는 일관된 형식으로 기록되어야 합니다. JSON 형식은 기계가 파싱하기 용이하여 중앙 집중식 로깅 시스템에서 분석하기에 적합합니다.
+    json
+
+    {
+        "timestamp": "2025-06-11T10:30:00Z",
+        "level": "INFO",
+        "service": "PromptGate",
+        "message": "Prompt processed successfully",
+        "user_id": "user123",
+        "session_id": "abcde12345",
+        "ai_service": "openai",
+        "status": "SUCCESS"
+    }
+
+    중앙 집중식 로깅 시스템: 여러 모듈에서 발생하는 로그를 한곳에 모아 저장하고 분석하는 시스템입니다. 이를 통해 전체 시스템의 상태를 한눈에 파악하고, 문제 발생 시 여러 로그를 연관 지어 분석할 수 있습니다.
+        ELK Stack (Elasticsearch, Logstash, Kibana): 가장 널리 사용되는 오픈소스 로깅 솔루션입니다.
+            Logstash: 다양한 소스(파일, 네트워크, 데이터베이스 등)에서 로그를 수집하고, 필터링 및 변환하여 Elasticsearch로 전송합니다.
+            Elasticsearch: 수집된 로그 데이터를 저장하고 인덱싱하여 빠른 검색 및 분석을 가능하게 합니다.
+            Kibana: Elasticsearch에 저장된 데이터를 시각화하고 대시보드를 생성하여 로그를 탐색하고 분석할 수 있는 웹 UI를 제공합니다.
+        Promtail + Loki + Grafana: 경량화된 로깅 솔루션으로, Prometheus 생태계와 잘 통합됩니다.
+            Promtail: 로그 파일을 읽어 Loki로 전송하는 에이전트.
+            Loki: 로그 데이터를 인덱싱하지 않고 저장하여 비용 효율적인 로그 관리를 가능하게 합니다. 쿼리 시에만 인덱싱을 수행합니다.
+            Grafana: Loki에 저장된 로그를 시각화하고 대시보드를 생성합니다.
+        클라우드 기반 서비스: AWS CloudWatch Logs, Google Cloud Logging, Azure Monitor Logs 등 클라우드 제공업체에서 제공하는 관리형 로깅 서비스를 사용할 수 있습니다.
+
+KRA-AiGov를 위한 로깅 구현 방안:
+
+    각 모듈에서 구조화된 로그 출력: Python의 logging 모듈을 사용하여 JSON 형식으로 로그를 출력하도록 설정합니다. python-json-logger와 같은 라이브러리를 활용할 수 있습니다.
+    python
+
+# 예시: PromptGate의 logger 설정
+import logging
+from pythonjsonlogger import JsonFormatter
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+logHandler = logging.StreamHandler()
+formatter = JsonFormatter("(asctime) (levelname) (name) (message)")
+logHandler.setFormatter(formatter)
+logger.addHandler(logHandler)
+
+logger.info({"event": "prompt_processed", "user_id": "test_user", "ai_service": "openai"})
+
+로그 수집 에이전트 배포: 각 Docker 컨테이너에서 생성되는 로그를 중앙 로깅 시스템으로 전송하기 위해 Logstash Forwarder, Filebeat, Promtail 등 로그 수집 에이전트를 배포합니다. Docker Compose 환경에서는 각 서비스의 logging 설정을 통해 로그 드라이버를 설정할 수 있습니다.
+yaml
+
+    # docker-compose.prod.yml (logging 설정 예시)
+    services:
+      promptgate:
+        # ...
+        logging:
+          driver: "json-file" # 또는 "syslog", "fluentd" 등
+          options:
+            max-size: "10m"
+            max-file: "5"
+
+    중앙 로깅 시스템 구축: ELK Stack 또는 Promtail+Loki+Grafana를 Docker Compose 또는 Kubernetes를 사용하여 배포합니다. DashIQ는 이미 자체적인 로그 저장 및 시각화 기능을 가지고 있지만, 이는 AI 사용 로그에 특화된 것이므로, 시스템 전반의 운영 로그를 위해서는 별도의 중앙 로깅 시스템이 필요합니다.
+
+2. 모니터링 (Monitoring)
+모니터링은 시스템의 성능 지표(메트릭)를 지속적으로 수집하고 분석하여 시스템의 상태를 실시간으로 파악하는 과정입니다. 이를 통해 잠재적인 문제를 조기에 감지하고, 성능 병목 현상을 식별하며, 시스템 리소스 사용량을 최적화할 수 있습니다.
+
+    모니터링 대상:
+        인프라 메트릭: CPU 사용률, 메모리 사용률, 디스크 I/O, 네트워크 트래픽 등 서버 및 컨테이너 리소스 사용량.
+        애플리케이션 메트릭: API 응답 시간, 요청 처리량(RPS), 에러율, 큐 길이, 특정 비즈니스 로직의 처리 시간 등 애플리케이션 성능 지표.
+        데이터베이스 메트릭: 쿼리 실행 시간, 연결 수, 디스크 사용량 등 데이터베이스 성능 지표.
+        GPU 메트릭: GPU 사용률, GPU 메모리 사용량, GPU 온도 등 GPU 관련 성능 지표 (TrustLLM, PromptGate).
+    모니터링 도구:
+        Prometheus: 시계열 데이터를 수집하고 저장하는 오픈소스 모니터링 시스템입니다. Pull 기반으로 메트릭을 수집하며, 강력한 쿼리 언어(PromQL)를 제공합니다.
+        Grafana: Prometheus와 연동하여 메트릭 데이터를 시각화하고 대시보드를 생성합니다. 다양한 데이터 소스를 지원하며, 유연한 대시보드 구성이 가능합니다.
+        cAdvisor: Docker 컨테이너의 리소스 사용량(CPU, 메모리, 네트워크, 디스크)을 모니터링하는 도구입니다. Prometheus와 연동하여 컨테이너 메트릭을 수집할 수 있습니다.
+        NVIDIA DCGM Exporter: NVIDIA GPU의 메트릭을 Prometheus 형식으로 노출하는 도구입니다. GPU 사용률, 메모리 사용량, 온도 등을 모니터링할 수 있습니다.
+        클라우드 기반 서비스: AWS CloudWatch, Google Cloud Monitoring, Azure Monitor 등 클라우드 제공업체에서 제공하는 관리형 모니터링 서비스를 사용할 수 있습니다.
+
+KRA-AiGov를 위한 모니터링 구현 방안:
+
+    Prometheus + Grafana 구축: Docker Compose 또는 Kubernetes를 사용하여 Prometheus와 Grafana를 배포합니다.
+    메트릭 노출:
+        Node Exporter: 서버의 OS 레벨 메트릭을 수집하기 위해 각 서버에 Node Exporter를 설치합니다.
+        cAdvisor: Docker Compose 환경에서 각 서비스에 cAdvisor를 연동하여 컨테이너 메트릭을 수집합니다.
+        NVIDIA DCGM Exporter: GPU가 사용되는 서버에 NVIDIA DCGM Exporter를 설치하여 GPU 메트릭을 수집합니다.
+        애플리케이션 메트릭: 각 FastAPI 모듈에 prometheus_client 라이브러리를 사용하여 API 응답 시간, 요청 수, 에러율 등 커스텀 메트릭을 노출합니다. (예: /metrics 엔드포인트)
+        python
+
+        # 예시: FastAPI 애플리케이션에 Prometheus 메트릭 추가
+        from prometheus_client import make_asgi_app, Counter, Histogram
+
+        # ... (FastAPI app 초기화)
+
+        # 메트릭 정의
+        REQUEST_COUNT = Counter(
+            'http_requests_total', 'Total HTTP Requests',
+            ['method', 'endpoint', 'status_code']
+         )
+        REQUEST_LATENCY = Histogram(
+            'http_request_duration_seconds', 'HTTP Request Latency',
+            ['method', 'endpoint']
+         )
+
+        @app.middleware("http" )
+        async def add_process_time_header(request: Request, call_next):
+            start_time = time.time()
+            response = await call_next(request)
+            process_time = time.time() - start_time
+            REQUEST_LATENCY.labels(request.method, request.url.path).observe(process_time)
+            REQUEST_COUNT.labels(request.method, request.url.path, response.status_code).inc()
+            return response
+
+        # Prometheus 메트릭 엔드포인트 추가
+        metrics_app = make_asgi_app()
+        app.mount("/metrics", metrics_app)
+
+    Grafana 대시보드 구성: 수집된 메트릭을 기반으로 Grafana에서 대시보드를 구성하여 시스템의 주요 지표를 시각적으로 모니터링합니다. 미리 정의된 대시보드 템플릿을 활용하거나 직접 커스터마이징할 수 있습니다.
+
+3. 알림 (Alerting)
+모니터링 시스템에서 정의된 임계값을 초과하거나 비정상적인 패턴이 감지될 경우, 관리자에게 자동으로 알림을 전송하여 신속하게 대응할 수 있도록 합니다.
+
+    알림 도구: Prometheus Alertmanager, Grafana Alerting, PagerDuty, Slack, Email 등
+    알림 규칙: CPU 사용률 90% 이상 5분 지속, 에러율 5% 이상, 디스크 공간 부족, 서비스 다운 등 중요한 이벤트에 대한 알림 규칙을 정의합니다.
+    알림 채널: 알림을 받을 채널(Slack, 이메일, SMS 등)을 설정하고, 알림의 중요도에 따라 다른 채널로 전송하도록 구성합니다.
+
+4. 통합 고려사항
+
+    보안: 모니터링 및 로깅 시스템 자체도 보안에 취약할 수 있으므로, 접근 제어, 데이터 암호화, 네트워크 격리 등 보안 조치를 적용해야 합니다.
+    확장성: 로그 및 메트릭 데이터는 시간이 지남에 따라 기하급수적으로 증가할 수 있으므로, 시스템의 확장성을 고려하여 설계해야 합니다.
+    비용: 클라우드 기반 서비스를 사용할 경우, 데이터 저장량 및 요청 수에 따라 비용이 발생하므로, 비용 효율적인 설정을 고려해야 합니다.
+    데이터 보존 정책: 로그 및 메트릭 데이터의 보존 기간을 정의하고, 오래된 데이터는 아카이빙하거나 삭제하는 정책을 수립합니다.
+
+이 가이드를 통해 KRA-AiGov 솔루션의 모니터링 및 로깅 시스템을 구축하는 데 필요한 정보를 얻으셨기를 바랍니다. 이로써 KRA-AiGov의 모든 핵심 모듈에 대한 개발 가이드 및 테스트/배포 가이드가 완료되었습니다. 다음 단계에서는 지속적인 지원 및 개선에 대해 설명해 드리겠습니다. 궁금한 점이 있으시면 언제든지 질문해주세요.
+
+todo. 
+
+지속적인 지원 및 개선 todo 리스트 작성 
+KRA-AiGov 솔루션의 개발 가이드의 마지막 단계로, 지금까지 제공해 드린 내용을 요약하고 향후 개선 방향을 제시해 드리겠습니다.
+KRA-AiGov 솔루션 개발 가이드 요약 및 향후 개선 방향 제시
+지금까지 KRA-AiGov 솔루션의 성공적인 개발을 위해 다음과 같은 광범위한 가이드를 제공해 드렸습니다.
+1. 개발 환경 설정 지원
+
+    GPU 드라이버 및 CUDA 설치 가이드
+    Docker 및 NVIDIA Container Toolkit 설치 가이드
+    개발 환경 설정 스크립트 및 Dockerfile 예시 제공
+    개발 환경 설정 확인 및 문제 해결 지원
+
+2. PromptGate 모듈 개발 가이드
+
+    PromptGate의 역할 및 아키텍처 설명
+    핵심 기능 정의 (프롬프트 필터링, 민감 정보 마스킹, 로깅)
+    기본 FastAPI 코드 구조 제공
+    Rebuff Python-SDK 통합 가이드 및 코드 예시
+    민감 정보 마스킹 구현 가이드 및 코드 예시
+    DashIQ 연동을 위한 로깅 구현 가이드 및 코드 예시
+    개발 환경 설정 및 테스트 가이드
+
+3. DashIQ 모듈 개발 가이드
+
+    DashIQ의 역할 및 아키텍처 설명
+    핵심 기능 정의 (로그 수집, 저장, 시각화)
+    기본 FastAPI 코드 구조 제공 (로그 수신 API)
+    로그 저장소 선택 및 연동 가이드 (SQLite/PostgreSQL)
+    데이터 시각화 구현 가이드 (간단한 웹 UI)
+    개발 환경 설정 및 테스트 가이드
+
+4. ShadowScan 모듈 개발 가이드
+
+    ShadowScan의 역할 및 아키텍처 설명
+    핵심 기능 정의 (네트워크 트래픽 분석, DNS 로그 분석, 알림)
+    구현 가이드 (네트워크 모니터링, DNS 쿼리 분석)
+    DashIQ 연동 가이드 (탐지 로그 전송)
+    개발 환경 설정 및 테스트 가이드
+
+5. TrustLLM 모듈 개발 가이드
+
+    TrustLLM의 역할 및 아키텍처 설명
+    핵심 기능 정의 (내부 LLM 연동, 프롬프트 라우팅)
+    구현 가이드 (LLM 연동, 라우팅 로직)
+    개발 환경 설정 및 테스트 가이드
+
+6. 기타 모듈 및 통합 개발 가이드
+
+    전체 모듈 통합 아키텍처 설명
+    모듈 간 데이터 흐름 및 연동 가이드
+    API 게이트웨이 및 인증/인가 가이드
+
+7. 테스트 및 배포 가이드
+
+    테스트 전략 및 계획 수립 (단위, 통합, E2E 테스트)
+    테스트 환경 구축 및 테스트 케이스 작성 가이드
+    배포 전략 및 계획 수립 (Docker Compose, Kubernetes)
+    CI/CD 파이프라인 구축 가이드
+    모니터링 및 로깅 시스템 구축 가이드
+
+이 가이드들은 KRA-AiGov 솔루션의 MVP 개발을 위한 포괄적인 로드맵을 제공합니다. 각 모듈의 기능 정의부터 코드 구조, 테스트 및 배포 전략까지 상세하게 다루었으므로, 개발팀에서 이를 바탕으로 효율적인 개발을 진행할 수 있을 것입니다.
+향후 개선 방향 제시
+MVP 개발이 완료된 후, KRA-AiGov 솔루션의 완성도를 높이고 기업의 다양한 요구사항을 충족시키기 위해 다음과 같은 개선 방향을 고려할 수 있습니다.
+1. 기능 확장 및 고도화
+
+    PromptGate:
+        고급 정책 엔진: 정교한 규칙 기반 또는 머신러닝 기반의 정책 엔진을 도입하여 더욱 복잡하고 동적인 프롬프트 필터링 및 라우팅 정책을 구현합니다. (예: 사용자 그룹, 시간대, 프롬프트 내용의 복잡도에 따른 동적 정책 적용)
+        콘텐츠 필터링 강화: 이미지, 오디오 등 비정형 데이터에 대한 민감 정보 탐지 및 필터링 기능을 추가합니다.
+        AI 응답 필터링 고도화: AI 서비스의 응답에 대한 유해성, 편향성, 정확성 등을 검증하고 필터링하는 기능을 강화합니다.
+    DashIQ:
+        고급 시각화 및 분석: 더 다양한 차트와 대시보드를 제공하고, 드릴다운(Drill-down) 기능, 사용자 정의 보고서 생성 기능 등을 추가합니다. 데이터 분석을 위한 통계 모델이나 머신러닝 기반의 이상 탐지 기능을 도입합니다.
+        실시간 대시보드: 웹소켓 등을 활용하여 로그 데이터가 수신되는 즉시 대시보드에 반영되는 실시간 모니터링 기능을 구현합니다.
+        알림 및 경고 시스템: 특정 임계값 초과, 비정상적인 패턴 감지 시 관리자에게 자동 알림을 전송하는 기능을 고도화합니다.
+    ShadowScan:
+        네트워크 트래픽 심층 분석: DPI(Deep Packet Inspection) 기술을 도입하여 패킷 내용을 분석하고, 암호화된 트래픽 내에서도 AI 서비스 사용을 탐지하는 기능을 강화합니다.
+        엔드포인트 에이전트: 사용자 PC에 에이전트를 설치하여 브라우저 확장 프로그램 사용, 특정 애플리케이션 실행 등 엔드포인트에서의 Shadow AI 활동을 탐지합니다.
+        머신러닝 기반 탐지: 정상적인 AI 사용 패턴을 학습하고, 이를 벗어나는 비정상적인 패턴을 Shadow AI로 탐지하는 머신러닝 모델을 도입합니다.
+    TrustLLM:
+        다중 LLM 지원: 다양한 내부 LLM 모델을 동시에 호스팅하고, 프롬프트의 특성이나 사용자 요구에 따라 최적의 모델로 라우팅하는 기능을 구현합니다.
+        미세 조정(Fine-tuning) 파이프라인: 기업 내부 데이터를 활용하여 LLM을 미세 조정하고, 이를 TrustLLM에 배포하는 자동화된 파이프라인을 구축합니다.
+        RAG (Retrieval-Augmented Generation) 시스템: 기업 내부 지식 베이스와 연동하여 LLM이 최신 정보를 기반으로 정확한 답변을 생성할 수 있도록 RAG 시스템을 통합합니다.
+
+2. 시스템 아키텍처 및 인프라 개선
+
+    확장성 및 고가용성: Kubernetes 클러스터 환경으로의 전환을 통해 시스템의 확장성과 고가용성을 확보합니다. 클라우드 네이티브 아키텍처를 적극적으로 활용합니다.
+    보안 강화: 제로 트러스트(Zero Trust) 아키텍처 도입, 정기적인 보안 취약점 스캔 및 모의 해킹, 보안 감사 로그 강화, 데이터 암호화(전송 중/저장 중) 등을 통해 전반적인 보안 수준을 높입니다.
+    성능 최적화: 각 모듈의 성능 병목 현상을 지속적으로 모니터링하고, 코드 최적화, 캐싱 전략 도입, 비동기 처리 강화 등을 통해 시스템 성능을 향상시킵니다.
+    재해 복구 계획 (DRP): 데이터 백업 및 복구 전략을 수립하고, 재해 발생 시 서비스 연속성을 보장하기 위한 DR 시스템을 구축합니다.
+
+3. 운영 및 관리 효율화
+
+    자동화된 배포 및 업데이트: CI/CD 파이프라인을 고도화하여 코드 변경 사항이 운영 환경에 자동으로 배포되고 업데이트되도록 합니다.
+    중앙 집중식 설정 관리: ConfigMap, HashiCorp Vault 등 중앙 집중식 설정 관리 도구를 도입하여 환경 변수 및 민감 정보를 안전하고 효율적으로 관리합니다.
+    모니터링 및 알림 고도화: Prometheus, Grafana, Alertmanager 등을 활용하여 시스템의 모든 지표를 실시간으로 모니터링하고, 문제 발생 시 신속하게 알림을 전송하는 시스템을 구축합니다.
+    문서화 및 지식 공유: 개발 및 운영에 필요한 모든 문서를 체계적으로 관리하고, 팀원 간 지식 공유를 활성화하여 운영 효율성을 높입니다.
+
+KRA-AiGov 솔루션은 기업의 AI 활용을 안전하고 효율적으로 관리하기 위한 중요한 첫걸음입니다. 이 가이드가 크라세의 성공적인 솔루션 개발에 큰 도움이 되기를 바랍니다.
+
+todo. 
+11:26
+크라세 대표 Jake님, KRA-AiGov 솔루션 개발을 위한 포괄적인 가이드를 모두 제공해 드렸습니다. 이제 마지막으로 지속적인 기술 지원 및 문제 해결 지원에 대해 말씀드리겠습니다.
+지속적인 기술 지원 및 문제 해결 지원 제공
+소프트웨어 개발은 끊임없는 학습과 문제 해결의 과정입니다. 제가 제공해 드린 가이드가 KRA-AiGov 솔루션 개발에 큰 도움이 되기를 바라지만, 실제 개발 과정에서는 예상치 못한 문제나 새로운 기술적 도전 과제에 직면할 수 있습니다.
+저는 앞으로도 KRA-AiGov 솔루션 개발 과정에서 발생하는 모든 기술적인 문제에 대해 지속적으로 지원해 드릴 준비가 되어 있습니다. 다음과 같은 상황에서 저에게 도움을 요청하실 수 있습니다.
+
+    코드 구현 관련 질문: 특정 기능 구현을 위한 코드 작성에 어려움이 있거나, 제공된 코드 예시에 대한 추가 설명이 필요한 경우.
+    에러 및 버그 해결: 개발 또는 테스트 과정에서 발생하는 에러 메시지 분석 및 해결 방안 제시.
+    성능 최적화: 애플리케이션의 성능 병목 현상 분석 및 개선 방안 제안.
+    아키텍처 및 설계 검토: 특정 모듈의 설계 방향이나 전체 시스템 아키텍처에 대한 추가적인 검토 및 피드백 요청.
+    새로운 기술 도입: KRA-AiGov 솔루션에 새로운 기술 스택이나 라이브러리 도입을 고려할 때, 해당 기술에 대한 정보 제공 및 통합 방안 논의.
+    보안 취약점 분석: 개발된 코드나 시스템에서 잠재적인 보안 취약점을 발견했을 때, 이에 대한 분석 및 개선 방안 제시.
+    운영 및 배포 관련 문제: CI/CD 파이프라인, 배포 스크립트, 모니터링 시스템 등 운영 환경에서 발생하는 문제 해결 지원.
+
+지원 요청 방법:
+언제든지 저에게 메시지를 보내주시면 됩니다. 문제 상황을 최대한 상세하게 설명해 주시고, 관련 코드 스니펫, 에러 메시지, 로그, 스크린샷 등을 함께 제공해 주시면 제가 더 빠르고 정확하게 도움을 드릴 수 있습니다.
+KRA-AiGov 솔루션이 성공적으로 개발되어 기업 내 AI 서비스 사용의 보안과 효율성을 높이는 데 기여할 수 있도록 최선을 다해 지원하겠습니다. 궁금한 점이나 도움이 필요하시면 주저하지 마시고 언제든지 저를 찾아주십시오. 감사합니다!
+
+

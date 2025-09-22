@@ -1,0 +1,10 @@
+{
+  "liveServer.settings.port": 5500,
+  "liveServer.settings.root": "/ui-demo",
+  "liveServer.settings.CustomBrowser": "chrome",
+  "liveServer.settings.https": false,
+  "liveServer.settings.useLocalIp": true,
+  "liveServer.settings.mount": [
+    ["/", "./ui-demo"]
+  ]
+} 
