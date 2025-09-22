@@ -257,15 +257,70 @@ AiGov/
 
 ## 4. 기술 스택 권장사항
 
+### 4.1 Phase별 기술 스택 로드맵
+
+#### Phase 1: MVP (3-4개월)
 | 구분                    | 기술 스택                           | 근거                                               |
 | ----------------------- | ----------------------------------- | -------------------------------------------------- |
-| **Frontend**      | React + TypeScript + Tailwind CSS   | 관리 포탈의 복잡한 UI, 실시간 대시보드 구현에 적합 |
-| **Backend**       | Node.js/FastAPI + TypeScript/Python | AI 모델 통합과 실시간 처리에 최적화                |
-| **Database**      | PostgreSQL + Redis + ClickHouse     | 관계형 데이터 + 캐싱 + 로그 분석용 컬럼형 DB       |
-| **Vector DB**     | Qdrant                              | 프롬프트 임베딩 및 유사도 검색                     |
+| **Frontend**      | Next.js + React + TypeScript + Tailwind CSS | 관리 포탈의 복잡한 UI, 실시간 대시보드 구현에 적합 |
+| **Backend**       | Python + FastAPI                    | AI 모델 통합과 실시간 처리에 최적화, Rebuff SDK 지원 |
+| **Database**      | PostgreSQL + Redis + Qdrant         | 관계형 데이터 + 캐싱 + 벡터 검색 |
+| **Logging**       | Elasticsearch + Kibana              | 실시간 로그 검색 및 모니터링 |
+| **Container**     | Docker + docker-compose             | 로컬 개발 및 테스트 환경 |
+| **DLP Integration** | 기존 DLP 시스템 API 연동           | 기업 보안 정책 준수, 기존 인프라 활용 |
+
+#### Phase 2: 확장 (2-3개월)
+| 구분                    | 기술 스택                           | 근거                                               |
+| ----------------------- | ----------------------------------- | -------------------------------------------------- |
 | **Message Queue** | Apache Kafka                        | 대용량 로그 스트리밍 및 실시간 이벤트 처리         |
-| **Container**     | Docker + Kubernetes                 | 마이크로서비스 오케스트레이션                      |
-| **API Gateway**   | Kong/Envoy Proxy                    | AI 거버넌스 특화 기능 지원                         |
+| **Log Analytics** | ClickHouse                          | 대용량 로그 분석, 장기 저장, 비용 효율성 |
+| **API Gateway**   | Kong                                | AI 거버넌스 특화 기능, 플러그인 생태계 |
+| **Monitoring**    | Prometheus + Grafana                | 시스템 모니터링 및 알림 |
+| **Tracing**       | Jaeger                              | 분산 추적 및 성능 분석 |
+
+#### Phase 3: 고도화 (3-4개월)
+| 구분                    | 기술 스택                           | 근거                                               |
+| ----------------------- | ----------------------------------- | -------------------------------------------------- |
+| **Orchestration** | Kubernetes                          | 마이크로서비스 오케스트레이션 |
+| **Service Mesh**  | Istio (선택사항)                    | 서비스 간 통신 관리 |
+| **AI Security**   | Rebuff SDK + DLP 하이브리드         | AI 특화 보안 + 기존 보안 정책 통합 |
+
+### 4.2 DLP 연동 전략
+
+#### 하이브리드 보안 아키텍처
+```
+프롬프트 입력 → PromptGate → [1차: Rebuff SDK] → [2차: DLP API] → AI 서비스
+```
+
+**1차 필터링 (Rebuff SDK)**
+- 실시간 AI 프롬프트 특화 필터링
+- 프롬프트 인젝션 탐지
+- 민감정보 패턴 매칭
+
+**2차 검증 (DLP 시스템)**
+- 기업 보안 정책 검증
+- 감사 로그 생성
+- 컴플라이언스 확인
+
+#### DLP 연동 방식
+1. **API 기반 연동**: REST API를 통한 실시간 검증
+2. **비동기 검증**: Kafka를 통한 배치 검증
+3. **정책 동기화**: 주기적 보안 정책 업데이트
+
+### 4.3 모니터링 및 관찰성
+
+#### 기본 모니터링 스택
+- **메트릭**: Prometheus + Grafana
+- **로그**: Elasticsearch + Kibana
+- **추적**: Jaeger
+- **알림**: AlertManager
+
+#### AI 특화 모니터링
+- 프롬프트 처리 시간
+- AI 서비스 응답 시간
+- 필터링 정확도
+- Shadow AI 탐지율
+- DLP 연동 성능
 
 ## 5. 단계별 개발 로드맵
 
