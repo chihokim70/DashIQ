@@ -3,6 +3,8 @@ services:
   promptgate_filter-service:
     ports:
       - "8001:8000"  # 독립 실행 시 포트 변경
+    volumes:
+      - ./backend:/app  # 개발 시 소스 코드 마운트
   promptgate_qdrant:
     ports:
       - "6334:6333"  # 독립 실행 시 포트 변경
@@ -12,3 +14,8 @@ services:
   promptgate_kibana:
     ports:
       - "5602:5601"  # 독립 실행 시 포트 변경
+  promptgate_frontend:
+    ports:
+      - "3001:8080"  # 독립 실행 시 포트 변경
+    volumes:
+      - ./frontend:/app  # 개발 시 소스 코드 마운트

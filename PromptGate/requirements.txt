@@ -1,0 +1,6 @@
+# PromptGate 통합 requirements.txt
+# 백엔드 의존성
+-r backend/requirements.txt
+
+# 추가 공통 의존성 (필요시)
+# 예: 공통 유틸리티, 로깅, 모니터링 등

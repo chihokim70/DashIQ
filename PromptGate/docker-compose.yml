@@ -16,7 +16,7 @@ services:
       - QDRANT_PORT=6333
       - REBUFF_API_KEY=${REBUFF_API_KEY:-}
     volumes:
-      - ./policy.db:/app/policy.db
+      - ./backend/policy.db:/app/policy.db
     depends_on:
       - promptgate_qdrant
       - promptgate_elasticsearch
@@ -61,6 +61,20 @@ services:
       - ELASTICSEARCH_HOSTS=http://promptgate_elasticsearch:9200
     depends_on:
       - promptgate_elasticsearch
+    networks:
+      - promptgate-network
+
+  promptgate_frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: promptgate_frontend
+    ports:
+      - "3001:8080"  # 포트 변경
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - promptgate_filter-service
     networks:
       - promptgate-network
 
