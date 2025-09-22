@@ -1,0 +1,82 @@
+# 2025년 09월 22일 - AiGov 프로젝트 개발 로그
+
+## 📋 오늘의 주요 작업
+
+### 1. 프로젝트 구조 재구성 (14:30-14:50)
+- 기존 코드를 도메인별 구조로 마이그레이션
+- 불필요한 폴더들 정리 및 삭제
+- 최종 구조: PromptGate, DashIQ, ShadowEye, TrustLLM, SolMan, Common, Developer, api-gateway, infrastructure
+
+### 2. Docker 파일 정리 (14:50-15:00)
+- PromptGate의 Docker 파일들을 도메인 루트로 이동
+- Dockerfile, Dockerfile.frontend, docker-compose.yml, docker-compose.override.yml 정리
+
+### 3. 개발 워크플로우 규칙 설정 (15:00-15:10)
+- 개발 로그 관리 규칙 설정 (Daily 단위, 30분마다 업데이트)
+- Git 워크플로우 규칙 설정 (commit → 로그 업데이트 → github 푸쉬)
+- 일일 마무리 프로세스 정의
+
+## 🔧 PromptGate Docker 경로 재설정 완료 (15:25-15:35)
+- Dockerfile 경로 수정: backend/ 폴더 참조로 변경
+- Dockerfile.frontend 경로 수정: frontend/ 폴더 참조로 변경
+- docker-compose.yml 업데이트: 프론트엔드 서비스 추가 및 볼륨 경로 수정
+- docker-compose.override.yml 업데이트: 개발용 볼륨 마운트 추가
+- 통합 requirements.txt 생성: 백엔드 의존성 참조
+- Docker 설정 검증 완료: docker-compose config 성공
+
+## 🧪 PromptGate Docker 테스트 완료 (15:35-15:50)
+- Docker 환경 확인: Docker 27.5.1, docker-compose 1.29.2
+- 백엔드 컨테이너 빌드 성공: Python 3.10-slim, 모든 의존성 설치 완료
+- 프론트엔드 빌드 실패: rebuff 모듈 의존성 누락 (추후 수정 필요)
+- 인프라 서비스 시작 성공: Qdrant, Elasticsearch, Kibana 모두 정상 동작
+- 백엔드 서비스 시작 성공: FastAPI 서버 정상 실행
+- 서비스 포트 확인:
+  - 백엔드 API: http://localhost:8001 (FastAPI 문서: /docs)
+  - Qdrant: http://localhost:6334 (벡터 DB)
+  - Elasticsearch: http://localhost:9201 (로그 저장소)
+  - Kibana: http://localhost:5602 (로그 분석)
+
+## 📋 기술 스택 설계 논의 및 문서 업데이트 (15:50-16:10)
+- DLP 연동 vs Rebuff SDK 비교 분석
+- 하이브리드 보안 아키텍처 설계: 1차 Rebuff SDK + 2차 DLP 검증
+- Phase별 기술 스택 로드맵 수립
+- 설계 문서 기술 스택 섹션 대폭 업데이트
+- 모니터링 스택 상세화 (Prometheus + Grafana + Jaeger)
+
+## 🎯 다음 작업 계획 (수요일 진행 예정)
+- 프론트엔드 의존성 문제 해결 (rebuff 모듈)
+- PromptGate API 기능 테스트
+- DLP 연동 인터페이스 설계
+- 다른 도메인들의 Docker 파일 생성
+- 하이브리드 보안 아키텍처 구현
+
+## 📊 오늘 작업 완료 요약
+- ✅ 프로젝트 구조 도메인별 재구성 완료
+- ✅ 개발 워크플로우 규칙 설정 (Git, 로그 관리)
+- ✅ PromptGate Docker 경로 재설정 및 테스트
+- ✅ 기술 스택 설계 논의 및 문서 업데이트
+- ✅ 하이브리드 보안 아키텍처 설계 완료
+
+## 📝 참고사항
+- 모든 개발 작업은 git으로 버전 관리
+- 30분마다 로그 파일 업데이트
+- 작업 종료 전 git commit → 로그 업데이트 → github 푸쉬
+
+## 🔧 Git 워크플로우 설정 완료 (15:10-15:20)
+- Git 저장소 초기화 완료
+- .gitignore 파일 생성
+- 초기 커밋 완료 (프로젝트 구조 재구성 및 Docker 파일 정리)
+- GitHub 원격 저장소 연결 설정 (인증 필요)
+- 브랜치: main
+
+## ✅ GitHub 인증 및 푸쉬 완료 (15:20-15:25)
+- SSH 키를 사용한 GitHub 인증 성공
+- 원격 저장소 URL을 SSH로 변경: `git@github.com:chihokim70/AiGov.git`
+- 초기 푸쉬 완료: `main` 브랜치가 `origin/main`으로 설정됨
+- 모든 개발 워크플로우 규칙 적용 완료
+
+## 🎯 개발 워크플로우 완전 설정 완료
+- ✅ Daily 로그 관리 (30분마다 업데이트)
+- ✅ Git 버전 관리 (자동 커밋)
+- ✅ GitHub 푸쉬 (SSH 인증)
+- ✅ 일일 마무리 프로세스 (commit → 로그 업데이트 → github 푸쉬)
