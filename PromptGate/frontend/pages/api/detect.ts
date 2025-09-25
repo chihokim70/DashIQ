@@ -1,11 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import Cors from "cors";
-import { rebuff } from "../../python-sdk/rebuff/skd";
+import { RebuffApi } from "rebuff";
 import {
   runMiddleware,
   checkApiKeyAndReduceBalance,
 } from "@/lib/detect-helpers";
 import { ApiFailureResponse } from "@types";
+import { getEnvironmentVariable } from "@/lib/general-helpers";
 
 const cors = Cors({
   methods: ["POST"],
@@ -54,6 +55,11 @@ export default async function handler(
       maxVectorScore = null,
     } = req.body;
     try {
+      const rebuff = new RebuffApi({
+        apiKey: getEnvironmentVariable("REBUFF_API_KEY"),
+        apiUrl: getEnvironmentVariable("REBUFF_API") ?? "https://api.rebuff.dev",
+      });
+      
       const resp = await rebuff.detectInjection({
         userInput: "",
         userInputBase64,

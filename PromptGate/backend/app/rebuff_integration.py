@@ -8,44 +8,17 @@ import re
 from typing import Dict, List, Optional
 from app.logger import get_logger
 from app.config import get_settings
+from app.rebuff_sdk_client import get_rebuff_client, RebuffResult, DetectionMethod
 
 logger = get_logger("rebuff-integration")
-
-# Rebuff SDK import (로컬 SDK 사용)
-try:
-    from rebuff_sdk.sdk import Rebuff
-    REBUFF_AVAILABLE = True
-except ImportError:
-    logger.warning("Rebuff SDK를 찾을 수 없습니다. 로컬 SDK를 사용합니다.")
-    REBUFF_AVAILABLE = False
 
 class RebuffIntegration:
     def __init__(self):
         self.settings = get_settings()
-        self.rebuff_client = None
-        self._initialize_rebuff()
+        self.rebuff_client = get_rebuff_client()
+        logger.info(f"Rebuff Integration 초기화 완료. 상태: {self.rebuff_client.get_status()}")
     
-    def _initialize_rebuff(self):
-        """Rebuff 클라이언트 초기화"""
-        try:
-            if REBUFF_AVAILABLE:
-                # Rebuff SDK 초기화
-                self.rebuff_client = Rebuff(
-                    provider="openai",           # 'openai', 'anthropic' 등
-                    api_key=self.settings.rebuff_api_key,  # 환경변수에서 가져오기
-                    vector_db="qdrant",          # Qdrant 사용
-                    qdrant_host=self.settings.qdrant_host,
-                    qdrant_port=self.settings.qdrant_port
-                )
-                logger.info("Rebuff SDK 초기화 성공")
-            else:
-                logger.warning("Rebuff SDK를 사용할 수 없습니다. 기본 필터링만 사용합니다.")
-                
-        except Exception as e:
-            logger.error(f"Rebuff SDK 초기화 실패: {str(e)}")
-            self.rebuff_client = None
-    
-    def detect_prompt_injection(self, prompt: str) -> Dict:
+    async def detect_prompt_injection(self, prompt: str) -> Dict:
         """
         Rebuff SDK를 사용한 프롬프트 인젝션 탐지
         
@@ -54,30 +27,21 @@ class RebuffIntegration:
                 "is_injection": bool,
                 "score": float,
                 "reasons": List[str],
-                "tactics": List[str]
+                "tactics": List[str],
+                "method": str
             }
         """
-        if not self.rebuff_client:
-            return self._fallback_detection(prompt)
-        
         try:
-            # Rebuff SDK를 사용한 탐지
-            result = self.rebuff_client.detect_prompt_injection(
-                prompt=prompt,
-                run_heuristic_check=True,
-                run_vector_check=True,
-                run_language_model_check=True,
-                max_heuristic_score=0.75,
-                max_vector_score=0.9,
-                max_model_score=0.9
-            )
+            # 새로운 Rebuff SDK 클라이언트 사용
+            result = await self.rebuff_client.detect_injection(prompt)
             
             return {
-                "is_injection": result.get("is_prompt_injection", False),
-                "score": result.get("score", 0.0),
-                "reasons": result.get("reasons", []),
-                "tactics": result.get("tactics", []),
-                "method": "rebuff_sdk"
+                "is_injection": result.is_injection,
+                "score": result.confidence,
+                "reasons": result.reasons,
+                "tactics": result.tactics,
+                "method": result.method.value,
+                "processing_time": result.processing_time
             }
             
         except Exception as e:

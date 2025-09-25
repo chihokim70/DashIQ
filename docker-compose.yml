@@ -1,0 +1,441 @@
+version: '3.8'
+
+# AiGov 전체 시스템 통합 Docker Compose
+# 각 도메인별 독립적인 네트워크와 서비스 구성
+
+services:
+  # PromptGate 서비스
+  promptgate_filter-service:
+    build:
+      context: ./PromptGate
+      dockerfile: Dockerfile
+    container_name: promptgate_filter-service
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://promptgate:password@promptgate_postgres:5432/promptgate_db
+      - REDIS_URL=redis://promptgate_redis:6379/0
+      - ELASTICSEARCH_URL=http://promptgate_elasticsearch:9200
+      - QDRANT_URL=http://promptgate_qdrant:6333
+    depends_on:
+      - promptgate_postgres
+      - promptgate_redis
+      - promptgate_elasticsearch
+      - promptgate_qdrant
+    volumes:
+      - ./PromptGate/backend:/app
+    networks:
+      - promptgate_network
+      - aigov_shared
+
+  promptgate_frontend:
+    build:
+      context: ./PromptGate
+      dockerfile: Dockerfile.frontend
+    container_name: promptgate_frontend
+    ports:
+      - "3001:8080"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+    depends_on:
+      - promptgate_filter-service
+    volumes:
+      - ./PromptGate/frontend:/app
+    networks:
+      - promptgate_network
+
+  promptgate_postgres:
+    image: postgres:15-alpine
+    container_name: promptgate_postgres
+    environment:
+      - POSTGRES_DB=promptgate_db
+      - POSTGRES_USER=promptgate
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - promptgate_postgres_data:/var/lib/postgresql/data
+    networks:
+      - promptgate_network
+
+  promptgate_redis:
+    image: redis:7-alpine
+    container_name: promptgate_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - promptgate_redis_data:/data
+    networks:
+      - promptgate_network
+
+  promptgate_elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: promptgate_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9201:9200"
+      - "9301:9300"
+    volumes:
+      - promptgate_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - promptgate_network
+
+  promptgate_qdrant:
+    image: qdrant/qdrant:latest
+    container_name: promptgate_qdrant
+    ports:
+      - "6334:6333"
+      - "6335:6334"
+    volumes:
+      - promptgate_qdrant_data:/qdrant/storage
+    networks:
+      - promptgate_network
+
+  promptgate_kibana:
+    image: kibana:8.11.0
+    container_name: promptgate_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://promptgate_elasticsearch:9200
+    ports:
+      - "5602:5601"
+    depends_on:
+      - promptgate_elasticsearch
+    networks:
+      - promptgate_network
+
+  # DashIQ 서비스
+  dashiq_backend:
+    build:
+      context: ./DashIQ
+      dockerfile: docker/Dockerfile.backend
+    container_name: dashiq_backend
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://dashiq:password@dashiq_postgres:5432/dashiq_db
+      - REDIS_URL=redis://dashiq_redis:6379/0
+      - ELASTICSEARCH_URL=http://dashiq_elasticsearch:9200
+    depends_on:
+      - dashiq_postgres
+      - dashiq_redis
+      - dashiq_elasticsearch
+    volumes:
+      - ./DashIQ/backend:/app
+    networks:
+      - dashiq_network
+      - aigov_shared
+
+  dashiq_frontend:
+    build:
+      context: ./DashIQ
+      dockerfile: docker/Dockerfile.frontend
+    container_name: dashiq_frontend
+    ports:
+      - "3002:3002"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8002
+    depends_on:
+      - dashiq_backend
+    volumes:
+      - ./DashIQ/frontend:/app
+    networks:
+      - dashiq_network
+
+  dashiq_postgres:
+    image: postgres:15-alpine
+    container_name: dashiq_postgres
+    environment:
+      - POSTGRES_DB=dashiq_db
+      - POSTGRES_USER=dashiq
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5433:5432"
+    volumes:
+      - dashiq_postgres_data:/var/lib/postgresql/data
+    networks:
+      - dashiq_network
+
+  dashiq_redis:
+    image: redis:7-alpine
+    container_name: dashiq_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - dashiq_redis_data:/data
+    networks:
+      - dashiq_network
+
+  dashiq_elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: dashiq_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9202:9200"
+      - "9302:9300"
+    volumes:
+      - dashiq_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - dashiq_network
+
+  dashiq_kibana:
+    image: kibana:8.11.0
+    container_name: dashiq_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://dashiq_elasticsearch:9200
+    ports:
+      - "5603:5601"
+    depends_on:
+      - dashiq_elasticsearch
+    networks:
+      - dashiq_network
+
+  # ShadowEye 서비스
+  shadoweye_backend:
+    build:
+      context: ./ShadowEye
+      dockerfile: docker/Dockerfile.backend
+    container_name: shadoweye_backend
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://shadoweye:password@shadoweye_postgres:5432/shadoweye_db
+      - REDIS_URL=redis://shadoweye_redis:6379/0
+      - ELASTICSEARCH_URL=http://shadoweye_elasticsearch:9200
+      - NETWORK_INTERFACE=eth0
+    depends_on:
+      - shadoweye_postgres
+      - shadoweye_redis
+      - shadoweye_elasticsearch
+    volumes:
+      - ./ShadowEye/backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    networks:
+      - shadoweye_network
+      - aigov_shared
+
+  shadoweye_frontend:
+    build:
+      context: ./ShadowEye
+      dockerfile: docker/Dockerfile.frontend
+    container_name: shadoweye_frontend
+    ports:
+      - "3003:3003"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8003
+    depends_on:
+      - shadoweye_backend
+    volumes:
+      - ./ShadowEye/frontend:/app
+    networks:
+      - shadoweye_network
+
+  shadoweye_postgres:
+    image: postgres:15-alpine
+    container_name: shadoweye_postgres
+    environment:
+      - POSTGRES_DB=shadoweye_db
+      - POSTGRES_USER=shadoweye
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5434:5432"
+    volumes:
+      - shadoweye_postgres_data:/var/lib/postgresql/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_redis:
+    image: redis:7-alpine
+    container_name: shadoweye_redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - shadoweye_redis_data:/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: shadoweye_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9203:9200"
+      - "9303:9300"
+    volumes:
+      - shadoweye_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_kibana:
+    image: kibana:8.11.0
+    container_name: shadoweye_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://shadoweye_elasticsearch:9200
+    ports:
+      - "5604:5601"
+    depends_on:
+      - shadoweye_elasticsearch
+    networks:
+      - shadoweye_network
+
+  # TrustLLM 서비스
+  trustllm_backend:
+    build:
+      context: ./TrustLLM
+      dockerfile: docker/Dockerfile.backend
+    container_name: trustllm_backend
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://trustllm:password@trustllm_postgres:5432/trustllm_db
+      - REDIS_URL=redis://trustllm_redis:6379/0
+      - MODEL_PATH=/app/models
+      - CUDA_VISIBLE_DEVICES=0
+    depends_on:
+      - trustllm_postgres
+      - trustllm_redis
+    volumes:
+      - ./TrustLLM/backend:/app
+      - ./TrustLLM/models:/app/models
+      - trustllm_model_cache:/app/.cache
+    networks:
+      - trustllm_network
+      - aigov_shared
+
+  trustllm_postgres:
+    image: postgres:15-alpine
+    container_name: trustllm_postgres
+    environment:
+      - POSTGRES_DB=trustllm_db
+      - POSTGRES_USER=trustllm
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5435:5432"
+    volumes:
+      - trustllm_postgres_data:/var/lib/postgresql/data
+    networks:
+      - trustllm_network
+
+  trustllm_redis:
+    image: redis:7-alpine
+    container_name: trustllm_redis
+    ports:
+      - "6382:6379"
+    volumes:
+      - trustllm_redis_data:/data
+    networks:
+      - trustllm_network
+
+  # SolMan 서비스
+  solman_backend:
+    build:
+      context: ./SolMan
+      dockerfile: docker/Dockerfile.backend
+    container_name: solman_backend
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://solman:password@solman_postgres:5432/solman_db
+      - REDIS_URL=redis://solman_redis:6379/0
+      - JWT_SECRET_KEY=your-secret-key-here
+      - ADMIN_EMAIL=admin@aigov.com
+    depends_on:
+      - solman_postgres
+      - solman_redis
+    volumes:
+      - ./SolMan/backend:/app
+    networks:
+      - solman_network
+      - aigov_shared
+
+  solman_frontend:
+    build:
+      context: ./SolMan
+      dockerfile: docker/Dockerfile.frontend
+    container_name: solman_frontend
+    ports:
+      - "3004:3004"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8005
+    depends_on:
+      - solman_backend
+    volumes:
+      - ./SolMan/frontend:/app
+    networks:
+      - solman_network
+
+  solman_postgres:
+    image: postgres:15-alpine
+    container_name: solman_postgres
+    environment:
+      - POSTGRES_DB=solman_db
+      - POSTGRES_USER=solman
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5436:5432"
+    volumes:
+      - solman_postgres_data:/var/lib/postgresql/data
+    networks:
+      - solman_network
+
+  solman_redis:
+    image: redis:7-alpine
+    container_name: solman_redis
+    ports:
+      - "6383:6379"
+    volumes:
+      - solman_redis_data:/data
+    networks:
+      - solman_network
+
+volumes:
+  # PromptGate volumes
+  promptgate_postgres_data:
+  promptgate_redis_data:
+  promptgate_elasticsearch_data:
+  promptgate_qdrant_data:
+  
+  # DashIQ volumes
+  dashiq_postgres_data:
+  dashiq_redis_data:
+  dashiq_elasticsearch_data:
+  
+  # ShadowEye volumes
+  shadoweye_postgres_data:
+  shadoweye_redis_data:
+  shadoweye_elasticsearch_data:
+  
+  # TrustLLM volumes
+  trustllm_postgres_data:
+  trustllm_redis_data:
+  trustllm_model_cache:
+  
+  # SolMan volumes
+  solman_postgres_data:
+  solman_redis_data:
+
+networks:
+  # 각 도메인별 독립 네트워크
+  promptgate_network:
+    driver: bridge
+  dashiq_network:
+    driver: bridge
+  shadoweye_network:
+    driver: bridge
+  trustllm_network:
+    driver: bridge
+  solman_network:
+    driver: bridge
+  
+  # 공유 네트워크 (서비스 간 통신용)
+  aigov_shared:
+    driver: bridge

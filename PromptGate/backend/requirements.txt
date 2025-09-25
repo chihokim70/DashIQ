@@ -16,3 +16,8 @@ qdrant-client==1.7.3
 
 
 psycopg2-binary==2.9.9
+
+# Rebuff SDK for prompt injection detection
+rebuff>=0.1.0
+openai>=1.8.0
+pinecone-client>=3.0.0

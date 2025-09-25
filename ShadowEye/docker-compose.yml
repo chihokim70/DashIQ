@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  shadoweye_backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: shadoweye_backend
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://shadoweye:password@shadoweye_postgres:5432/shadoweye_db
+      - REDIS_URL=redis://shadoweye_redis:6379/0
+      - ELASTICSEARCH_URL=http://shadoweye_elasticsearch:9200
+      - NETWORK_INTERFACE=eth0
+    depends_on:
+      - shadoweye_postgres
+      - shadoweye_redis
+      - shadoweye_elasticsearch
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    networks:
+      - shadoweye_network
+
+  shadoweye_frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: shadoweye_frontend
+    ports:
+      - "3003:3003"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8003
+    depends_on:
+      - shadoweye_backend
+    volumes:
+      - ./frontend:/app
+    networks:
+      - shadoweye_network
+
+  shadoweye_postgres:
+    image: postgres:15-alpine
+    container_name: shadoweye_postgres
+    environment:
+      - POSTGRES_DB=shadoweye_db
+      - POSTGRES_USER=shadoweye
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5434:5432"
+    volumes:
+      - shadoweye_postgres_data:/var/lib/postgresql/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_redis:
+    image: redis:7-alpine
+    container_name: shadoweye_redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - shadoweye_redis_data:/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: shadoweye_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9203:9200"
+      - "9303:9300"
+    volumes:
+      - shadoweye_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - shadoweye_network
+
+  shadoweye_kibana:
+    image: kibana:8.11.0
+    container_name: shadoweye_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://shadoweye_elasticsearch:9200
+    ports:
+      - "5604:5601"
+    depends_on:
+      - shadoweye_elasticsearch
+    networks:
+      - shadoweye_network
+
+volumes:
+  shadoweye_postgres_data:
+  shadoweye_redis_data:
+  shadoweye_elasticsearch_data:
+
+networks:
+  shadoweye_network:
+    driver: bridge

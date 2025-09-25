@@ -65,7 +65,8 @@ def evaluate_prompt(prompt: str, user_id: int = None, session_id: str = None, ip
             }
         else:
             # ✅ 2단계: Rebuff SDK 기반 프롬프트 인젝션 탐지
-            rebuff_result = rebuff_integration.detect_prompt_injection(prompt)
+            import asyncio
+            rebuff_result = asyncio.run(rebuff_integration.detect_prompt_injection(prompt))
             
             if rebuff_result["is_injection"]:
                 result = {

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  trustllm_backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: trustllm_backend
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://trustllm:password@trustllm_postgres:5432/trustllm_db
+      - REDIS_URL=redis://trustllm_redis:6379/0
+      - MODEL_PATH=/app/models
+      - CUDA_VISIBLE_DEVICES=0
+    depends_on:
+      - trustllm_postgres
+      - trustllm_redis
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+      - trustllm_model_cache:/app/.cache
+    networks:
+      - trustllm_network
+
+  trustllm_postgres:
+    image: postgres:15-alpine
+    container_name: trustllm_postgres
+    environment:
+      - POSTGRES_DB=trustllm_db
+      - POSTGRES_USER=trustllm
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5435:5432"
+    volumes:
+      - trustllm_postgres_data:/var/lib/postgresql/data
+    networks:
+      - trustllm_network
+
+  trustllm_redis:
+    image: redis:7-alpine
+    container_name: trustllm_redis
+    ports:
+      - "6382:6379"
+    volumes:
+      - trustllm_redis_data:/data
+    networks:
+      - trustllm_network
+
+volumes:
+  trustllm_postgres_data:
+  trustllm_redis_data:
+  trustllm_model_cache:
+
+networks:
+  trustllm_network:
+    driver: bridge

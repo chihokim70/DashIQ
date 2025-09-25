@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  solman_backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: solman_backend
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://solman:password@solman_postgres:5432/solman_db
+      - REDIS_URL=redis://solman_redis:6379/0
+      - JWT_SECRET_KEY=your-secret-key-here
+      - ADMIN_EMAIL=admin@aigov.com
+    depends_on:
+      - solman_postgres
+      - solman_redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - solman_network
+
+  solman_frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: solman_frontend
+    ports:
+      - "3004:3004"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8005
+    depends_on:
+      - solman_backend
+    volumes:
+      - ./frontend:/app
+    networks:
+      - solman_network
+
+  solman_postgres:
+    image: postgres:15-alpine
+    container_name: solman_postgres
+    environment:
+      - POSTGRES_DB=solman_db
+      - POSTGRES_USER=solman
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5436:5432"
+    volumes:
+      - solman_postgres_data:/var/lib/postgresql/data
+    networks:
+      - solman_network
+
+  solman_redis:
+    image: redis:7-alpine
+    container_name: solman_redis
+    ports:
+      - "6383:6379"
+    volumes:
+      - solman_redis_data:/data
+    networks:
+      - solman_network
+
+volumes:
+  solman_postgres_data:
+  solman_redis_data:
+
+networks:
+  solman_network:
+    driver: bridge

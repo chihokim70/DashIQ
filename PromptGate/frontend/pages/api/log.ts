@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import Cors from "cors";
 import { runMiddleware, checkApiKey } from "@/lib/detect-helpers";
 import { supabaseAdminClient } from "@/lib/supabase";
-#  import { rebuff } from "@/lib/rebuff";
+//  import { rebuff } from "@/lib/rebuff";
 import {
   ApiFailureResponse,
   LogApiRequest,
@@ -85,7 +85,7 @@ export default async function handler(
       } as ApiFailureResponse);
     }
 
-    await rebuff.logLeakage(userInput, { accountId });
+    // await rebuff.logLeakage(userInput, { accountId });
 
     return res.status(200).json({
       success: true,
