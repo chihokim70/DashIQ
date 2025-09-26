@@ -1,0 +1,16 @@
+{
+    "folders": [
+        {
+            "name": "AiGov",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/node_modules": true,
+            "**/__pycache__": true,
+            "**/.git": true
+        }
+    }
+}
+

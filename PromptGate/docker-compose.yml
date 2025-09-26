@@ -24,11 +24,14 @@ services:
       - DLP_API_KEY=mock-dlp-key
       - DLP_MOCK_MODE=true
       - SECURITY_LEVEL=medium
+      - OPA_URL=http://promptgate_opa:8181
     volumes:
       - ./backend/policy.db:/app/policy.db
+      - ./backend/policies:/app/policies
     depends_on:
       - promptgate_qdrant
       - promptgate_elasticsearch
+      - promptgate_opa
     networks:
       - promptgate-network
 
@@ -84,6 +87,24 @@ services:
       - NODE_ENV=production
     depends_on:
       - promptgate_filter-service
+    networks:
+      - promptgate-network
+
+  promptgate_opa:
+    image: openpolicyagent/opa:latest
+    container_name: promptgate_opa
+    ports:
+      - "8181:8181"
+    command: [
+      "run",
+      "--server",
+      "--addr=0.0.0.0:8181",
+      "--diagnostic-addr=0.0.0.0:8282",
+      "--set=plugins.enabled=true",
+      "--set=decision_logs.console=true"
+    ]
+    volumes:
+      - ./backend/policies:/policies
     networks:
       - promptgate-network
 

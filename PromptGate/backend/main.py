@@ -4,6 +4,7 @@ from app.filter import evaluate_prompt
 from app.logger import get_logger, log_to_elasticsearch
 from app.api import router as api_router
 from app.hybrid_security import get_hybrid_security_engine, close_hybrid_security_engine
+from app.policy_engine import get_policy_engine, close_policy_engine
 from datetime import datetime
 import asyncio
 import logging
@@ -16,20 +17,31 @@ app.include_router(api_router, prefix="/api/v1", tags=["chat"])
 
 @app.on_event("startup")
 async def startup_event():
-    """애플리케이션 시작 시 하이브리드 보안 엔진 초기화"""
-    logger.info("PromptGate 서비스 시작 - 하이브리드 보안 엔진 초기화")
+    """애플리케이션 시작 시 하이브리드 보안 엔진 및 정책 엔진 초기화"""
+    logger.info("PromptGate 서비스 시작 - 보안 엔진 및 정책 엔진 초기화")
+    
     try:
+        # 하이브리드 보안 엔진 초기화
         engine = await get_hybrid_security_engine()
         status = await engine.get_security_status()
         logger.info(f"하이브리드 보안 엔진 상태: {status}")
     except Exception as e:
         logger.error(f"하이브리드 보안 엔진 초기화 실패: {e}")
+    
+    try:
+        # OPA 정책 엔진 초기화
+        policy_engine = await get_policy_engine()
+        policy_status = await policy_engine.get_policy_status()
+        logger.info(f"정책 엔진 상태: {policy_status}")
+    except Exception as e:
+        logger.error(f"정책 엔진 초기화 실패: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 리소스 정리"""
     logger.info("PromptGate 서비스 종료 - 리소스 정리")
     await close_hybrid_security_engine()
+    await close_policy_engine()
 
 @app.post("/prompt/check")
 async def check_prompt(request: Request):

@@ -1,0 +1,137 @@
+# AiGov 개발 기본 규칙 (Cursor Rules)
+
+## 🌏 언어 규칙
+- **모든 대화는 한글(Korean)로 작성/답변**
+- 코드 주석, 문서, 로그 모두 한글로 작성
+- 변수명, 함수명은 영어 사용 (국제 표준)
+
+## 📝 개발 워크플로우 규칙
+
+### 1. 일일 개발 로그 관리
+- **매일 개발 시작 시**: `~/AiGov/Developer/logs/YYYYMMDD.log` 파일 생성/업데이트
+- **로그 형식**: 
+  ```
+  ## 📅 YYYY년 MM월 DD일 개발 로그
+  **작성 시간**: YYYY년 MM월 DD일 HH:MM
+  **작성자**: AI Assistant
+  **다음 업데이트**: 구현 시작 후 진행 상황 기록 예정
+  ```
+
+### 2. Git 버전 관리
+- **1시간 단위 커밋**: 개발 진행 상황을 1시간마다 커밋
+- **커밋 메시지 형식**: `feat: 기능명 - 상세 설명`
+- **Daily 개발 종료 시**: GitHub 푸쉬 필수
+
+### 3. 개발 로그 업데이트 패턴
+- **시작**: 로그 파일 생성 및 초기 내용 작성
+- **진행 중**: 30분마다 진행 상황 업데이트
+- **완료**: 구현 완료 시 상세 결과 기록
+- **종료**: Git 커밋 + GitHub 푸쉬
+
+## 🛠️ 기술 스택 규칙
+
+### 프론트엔드
+- **Framework**: React + Next.js
+- **Styling**: Tailwind CSS
+- **Language**: TypeScript
+- **State Management**: React Context API 또는 Zustand
+
+### 백엔드
+- **Framework**: Python + FastAPI
+- **Authentication**: JWT 인증 시스템
+- **Architecture**: 미들웨어 구조
+- **Database**: PostgreSQL + Redis + Qdrant
+- **Container**: Docker + Docker Compose
+
+### 보안 및 모니터링
+- **Policy Engine**: OPA (Open Policy Agent)
+- **PII Detection**: Presidio
+- **Secret Scanner**: TruffleHog/Gitleaks
+- **Monitoring**: Prometheus + Grafana
+- **Logging**: Elasticsearch + Kibana
+
+## 📁 프로젝트 구조 규칙
+
+### 도메인 기반 마이크로서비스
+```
+AiGov/
+├── 1.PromptGate/          # 프롬프트 보안 필터링
+├── 2.DashIQ/              # 대시보드 및 분석
+├── 3.ShadowEye/           # 모니터링 및 감사
+├── 4.TrustLLM/            # 신뢰성 평가
+├── 5.SolMan/              # 솔루션 관리
+├── 6.Developer/           # 개발 도구 및 문서
+├── Common/                # 공통 라이브러리
+├── api-gateway/           # API 게이트웨이
+└── infrastructure/        # 인프라 설정
+```
+
+### 각 도메인 구조
+```
+Domain/
+├── backend/               # FastAPI 백엔드
+│   ├── app/              # 애플리케이션 코드
+│   ├── policies/         # OPA 정책 파일
+│   ├── requirements.txt  # Python 의존성
+│   └── Dockerfile        # 백엔드 컨테이너
+├── frontend/             # Next.js 프론트엔드
+│   ├── pages/           # 페이지 컴포넌트
+│   ├── components/      # 재사용 컴포넌트
+│   ├── lib/             # 유틸리티 함수
+│   ├── package.json     # Node.js 의존성
+│   └── Dockerfile.frontend # 프론트엔드 컨테이너
+└── docker-compose.yml   # 서비스 오케스트레이션
+```
+
+## 🔄 자동화 규칙
+
+### 개발 시작 시 자동 실행
+1. 현재 날짜 확인
+2. 로그 파일 생성/업데이트
+3. Git 상태 확인
+4. 개발 환경 준비
+
+### 개발 진행 중 자동 실행
+1. 30분마다 로그 업데이트
+2. 1시간마다 Git 커밋
+3. 코드 변경사항 추적
+
+### 개발 종료 시 자동 실행
+1. 최종 로그 업데이트
+2. Git 커밋 (최종)
+3. GitHub 푸쉬
+4. 다음 개발 계획 수립
+
+## 📋 코드 작성 규칙
+
+### Python (FastAPI)
+- **비동기 처리**: `async/await` 패턴 사용
+- **타입 힌트**: 모든 함수에 타입 힌트 추가
+- **에러 처리**: 적절한 예외 처리 및 로깅
+- **문서화**: Docstring으로 함수 설명
+
+### TypeScript (Next.js)
+- **타입 안전성**: strict 모드 사용
+- **컴포넌트**: 함수형 컴포넌트 + Hooks
+- **상태 관리**: Context API 또는 Zustand
+- **스타일링**: Tailwind CSS 클래스 사용
+
+### OPA 정책 (Rego)
+- **모듈화**: 기능별 파일 분리
+- **재사용성**: 공통 헬퍼 함수 활용
+- **가독성**: 명확한 정책 구조
+- **테스트**: 정책 단위 테스트
+
+## 🚫 반복 금지 사항
+- 위 규칙들은 매번 설명하지 않고 자동으로 적용
+- 개발 워크플로우는 기본 룰로 설정되어 있음
+- 기술 스택 선택은 위 규칙에 따라 자동 결정
+- 프로젝트 구조는 도메인 기반으로 자동 구성
+
+## ✅ 적용 확인
+이 규칙들이 설정되어 있으면:
+- 모든 대화가 자동으로 한글로 진행
+- 개발 로그가 자동으로 관리됨
+- Git 커밋/푸쉬가 자동으로 실행됨
+- 기술 스택이 자동으로 선택됨
+- 프로젝트 구조가 자동으로 구성됨

@@ -1,17 +1,22 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import httpx
 import json
 import uuid
 from datetime import datetime
+from app.filter import evaluate_prompt_with_policy
+from app.policy_engine import get_policy_engine
 
 router = APIRouter()
 
 class PromptRequest(BaseModel):
     prompt: str
-    user_id: Optional[int] = None
+    user_id: Optional[str] = None
     session_id: Optional[str] = None
+    tenant_id: Optional[str] = "kra-internal"
+    user_roles: Optional[List[str]] = None
+    user_permissions: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class PromptResponse(BaseModel):
@@ -21,6 +26,12 @@ class PromptResponse(BaseModel):
     risk_score: float
     detection_method: str
     processing_time: float
+    policy_processing_time: Optional[float] = None
+    policy_violations: Optional[List[str]] = None
+    requires_masking: Optional[bool] = None
+    requires_alert: Optional[bool] = None
+    filter_results: Optional[List[Dict[str, Any]]] = None
+    metadata: Optional[Dict[str, Any]] = None
     blocked_keywords: Optional[list] = None
     tactics: Optional[list] = None
     error: Optional[str] = None
@@ -42,7 +53,7 @@ async def evaluate_prompt_endpoint(
     http_request: Request
 ):
     """
-    프롬프트를 평가하고 필터링 결과를 반환합니다.
+    OPA 정책 엔진을 사용한 프롬프트 평가 및 필터링
     """
     try:
         # 클라이언트 정보 추출
@@ -52,23 +63,31 @@ async def evaluate_prompt_endpoint(
         # 세션 ID가 없으면 생성
         session_id = request.session_id or str(uuid.uuid4())
         
-        # 프롬프트 평가
-        from app.filter import evaluate_prompt
-        result = evaluate_prompt(
+        # OPA 정책 엔진을 사용한 프롬프트 평가
+        result = await evaluate_prompt_with_policy(
             prompt=request.prompt,
+            tenant_id=request.tenant_id,
             user_id=request.user_id,
             session_id=session_id,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            user_roles=request.user_roles,
+            user_permissions=request.user_permissions
         )
         
         return PromptResponse(
             is_blocked=result.get("is_blocked", False),
-            reason=result.get("reason", ""),
-            masked_prompt=result.get("masked_prompt", ""),
+            reason=result.get("reason", "Unknown"),
+            masked_prompt=result.get("masked_prompt", request.prompt),
             risk_score=result.get("risk_score", 0.0),
-            detection_method=result.get("detection_method", ""),
+            detection_method=result.get("detection_method", "unknown"),
             processing_time=result.get("processing_time", 0.0),
+            policy_processing_time=result.get("policy_processing_time"),
+            policy_violations=result.get("policy_violations"),
+            requires_masking=result.get("requires_masking"),
+            requires_alert=result.get("requires_alert"),
+            filter_results=result.get("filter_results"),
+            metadata=result.get("metadata"),
             blocked_keywords=result.get("blocked_keywords"),
             tactics=result.get("tactics"),
             error=result.get("error")
@@ -76,6 +95,18 @@ async def evaluate_prompt_endpoint(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"프롬프트 평가 중 오류가 발생했습니다: {str(e)}")
+
+@router.get("/policy/status")
+async def get_policy_status():
+    """
+    정책 엔진 상태 조회
+    """
+    try:
+        policy_engine = await get_policy_engine()
+        status = await policy_engine.get_policy_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"정책 상태 조회 실패: {str(e)}")
 
 @router.post("/policy/blocked-keyword", response_model=PolicyResponse)
 async def add_blocked_keyword(request: PolicyRequest):

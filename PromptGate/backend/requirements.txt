@@ -21,3 +21,6 @@ psycopg2-binary==2.9.9
 rebuff>=0.1.0
 openai>=1.8.0
 pinecone-client>=3.0.0
+
+# OPA (Open Policy Agent) for policy management
+opa-client>=0.1.0
