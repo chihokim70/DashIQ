@@ -8,6 +8,7 @@ from app.vector_store import check_similarity
 from app.policy_client import get_block_keywords, get_mask_keywords
 from app.rebuff_integration import rebuff_integration
 from app.policy_engine import get_policy_engine, RequestContext, PolicyAction
+from app.secret_scanner import get_secret_scanner, SecretScanResult, SecretType, SecretSeverity
 
 logger = get_logger("filter")
 
@@ -103,6 +104,43 @@ async def evaluate_prompt_with_policy(
                 "reason": "Similar to known dangerous prompt",
                 "details": {"similarity_score": 0.8}
             })
+        
+        # 고급 Secret Scanner 검사
+        secret_scanner = await get_secret_scanner()
+        secret_scan_result = await secret_scanner.scan_text(prompt, f"user:{user_id}, session:{session_id}")
+        
+        if secret_scan_result.has_secrets:
+            # 고위험 시크릿이 발견된 경우
+            high_risk_secrets = [s for s in secret_scan_result.secrets 
+                               if s.severity in [SecretSeverity.HIGH, SecretSeverity.CRITICAL]]
+            
+            if high_risk_secrets:
+                filter_results.append({
+                    "filter_type": "secret_scanner",
+                    "action": "block",
+                    "reason": f"High-risk secrets detected: {len(high_risk_secrets)} secrets",
+                    "details": {
+                        "total_secrets": secret_scan_result.total_secrets,
+                        "high_risk_secrets": secret_scan_result.high_risk_secrets,
+                        "secret_types": [s.secret_type.value for s in high_risk_secrets],
+                        "scanner_status": secret_scan_result.scanner_status,
+                        "processing_time": secret_scan_result.processing_time
+                    }
+                })
+            else:
+                # 중위험 시크릿이 발견된 경우 (경고)
+                filter_results.append({
+                    "filter_type": "secret_scanner",
+                    "action": "warn",
+                    "reason": f"Secrets detected: {secret_scan_result.total_secrets} secrets",
+                    "details": {
+                        "total_secrets": secret_scan_result.total_secrets,
+                        "high_risk_secrets": secret_scan_result.high_risk_secrets,
+                        "secret_types": [s.secret_type.value for s in secret_scan_result.secrets],
+                        "scanner_status": secret_scan_result.scanner_status,
+                        "processing_time": secret_scan_result.processing_time
+                    }
+                })
         
         # 2단계: OPA 정책 엔진 평가
         policy_engine = await get_policy_engine()

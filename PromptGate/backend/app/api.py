@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from app.filter import evaluate_prompt_with_policy
 from app.policy_engine import get_policy_engine
+from app.secret_scanner import get_secret_scanner
 
 router = APIRouter()
 
@@ -107,6 +108,18 @@ async def get_policy_status():
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"정책 상태 조회 실패: {str(e)}")
+
+@router.get("/secret-scanner/status")
+async def get_secret_scanner_status():
+    """
+    Secret Scanner 상태 조회
+    """
+    try:
+        secret_scanner = await get_secret_scanner()
+        status = secret_scanner.get_scanner_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Secret Scanner 상태 조회 실패: {str(e)}")
 
 @router.post("/policy/blocked-keyword", response_model=PolicyResponse)
 async def add_blocked_keyword(request: PolicyRequest):

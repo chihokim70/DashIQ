@@ -24,3 +24,10 @@ pinecone-client>=3.0.0
 
 # OPA (Open Policy Agent) for policy management
 opa-client>=0.1.0
+
+# Secret Scanner libraries
+trufflehog>=3.0.0
+gitleaks>=8.0.0
+detect-secrets>=1.4.0
+pyahocorasick>=2.0.0  # Aho-Corasick algorithm for pattern matching
+cryptography>=41.0.0  # For cryptographic pattern detection

@@ -5,6 +5,7 @@ from app.logger import get_logger, log_to_elasticsearch
 from app.api import router as api_router
 from app.hybrid_security import get_hybrid_security_engine, close_hybrid_security_engine
 from app.policy_engine import get_policy_engine, close_policy_engine
+from app.secret_scanner import get_secret_scanner, close_secret_scanner
 from datetime import datetime
 import asyncio
 import logging
@@ -35,6 +36,14 @@ async def startup_event():
         logger.info(f"정책 엔진 상태: {policy_status}")
     except Exception as e:
         logger.error(f"정책 엔진 초기화 실패: {e}")
+    
+    try:
+        # Secret Scanner 초기화
+        secret_scanner = await get_secret_scanner()
+        scanner_status = secret_scanner.get_scanner_status()
+        logger.info(f"Secret Scanner 상태: {scanner_status}")
+    except Exception as e:
+        logger.error(f"Secret Scanner 초기화 실패: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -42,6 +51,7 @@ async def shutdown_event():
     logger.info("PromptGate 서비스 종료 - 리소스 정리")
     await close_hybrid_security_engine()
     await close_policy_engine()
+    await close_secret_scanner()
 
 @app.post("/prompt/check")
 async def check_prompt(request: Request):
