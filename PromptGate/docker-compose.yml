@@ -5,14 +5,14 @@ services:
     build: .
     container_name: promptgate_filter-service
     ports:
-      - "8001:8000"  # 포트 변경
+      - "8001:8000"
     environment:
       - ENVIRONMENT=development
       - ENABLE_ES_LOGGING=true
-      - ELASTICSEARCH_URL=http://promptgate_elasticsearch:9200
+      - ELASTICSEARCH_URL=http://aigov_elasticsearch:9200
       - ELASTICSEARCH_USER=elastic
       - ELASTICSEARCH_PASSWORD=changeme
-      - QDRANT_HOST=promptgate_qdrant
+      - QDRANT_HOST=aigov_qdrant
       - QDRANT_PORT=6333
       - REBUFF_API_KEY=${REBUFF_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-dummy-key-for-testing}
@@ -29,52 +29,10 @@ services:
       - ./backend/policy.db:/app/policy.db
       - ./backend/policies:/app/policies
     depends_on:
-      - promptgate_qdrant
-      - promptgate_elasticsearch
       - promptgate_opa
     networks:
       - promptgate-network
-
-  promptgate_qdrant:
-    image: qdrant/qdrant:latest
-    container_name: promptgate_qdrant
-    ports:
-      - "6334:6333"  # 포트 변경
-      - "6335:6334"  # 포트 변경
-    volumes:
-      - promptgate_qdrant_data:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__HTTP_PORT=6333
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    networks:
-      - promptgate-network
-
-  promptgate_elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: promptgate_elasticsearch
-    ports:
-      - "9201:9200"  # 포트 변경
-      - "9301:9300"  # 포트 변경
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - promptgate_elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - promptgate-network
-
-  promptgate_kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: promptgate_kibana
-    ports:
-      - "5602:5601"  # 포트 변경
-    environment:
-      - ELASTICSEARCH_HOSTS=http://promptgate_elasticsearch:9200
-    depends_on:
-      - promptgate_elasticsearch
-    networks:
-      - promptgate-network
+      - database_aigov-network
 
   promptgate_frontend:
     build:
@@ -82,7 +40,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: promptgate_frontend
     ports:
-      - "3001:8080"  # 포트 변경
+      - "3001:8080"
     environment:
       - NODE_ENV=production
     depends_on:
@@ -100,7 +58,6 @@ services:
       "--server",
       "--addr=0.0.0.0:8181",
       "--diagnostic-addr=0.0.0.0:8282",
-      "--set=plugins.enabled=true",
       "--set=decision_logs.console=true"
     ]
     volumes:
@@ -108,10 +65,9 @@ services:
     networks:
       - promptgate-network
 
-volumes:
-  promptgate_qdrant_data:
-  promptgate_elasticsearch_data:
-
 networks:
   promptgate-network:
-    driver: bridge 
+    driver: bridge
+    external: false
+  database_aigov-network:
+    external: true

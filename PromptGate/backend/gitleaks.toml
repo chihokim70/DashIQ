@@ -1,0 +1,259 @@
+# Gitleaks Configuration for AiGov PromptGate
+# Admin Portal에서 패턴을 정의하면 이 파일이 자동으로 업데이트됩니다
+
+[gitleaks]
+    # 기본 설정
+    verbose = true
+    log-level = "info"
+    
+    # 제외할 파일/디렉토리
+    exclude = [
+        "*.log",
+        "node_modules/**",
+        "__pycache__/**",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".git/**",
+        "*.tmp",
+        "*.temp"
+    ]
+    
+    # 커스텀 시크릿 규칙
+    [[gitleaks.rules]]
+        id = "aws-access-key"
+        description = "AWS Access Key"
+        regex = '''AKIA[0-9A-Z]{16}'''
+        severity = "high"
+        tags = ["aws", "access-key"]
+        
+    [[gitleaks.rules]]
+        id = "aws-secret-key"
+        description = "AWS Secret Access Key"
+        regex = '''[A-Za-z0-9/+=]{40}'''
+        severity = "high"
+        tags = ["aws", "secret-key"]
+        
+    [[gitleaks.rules]]
+        id = "openai-api-key"
+        description = "OpenAI API Key"
+        regex = '''sk-[a-zA-Z0-9]{48}'''
+        severity = "high"
+        tags = ["openai", "api-key"]
+        
+    [[gitleaks.rules]]
+        id = "openai-project-key"
+        description = "OpenAI Project API Key"
+        regex = '''sk-proj-[a-zA-Z0-9]{48}'''
+        severity = "high"
+        tags = ["openai", "project-key"]
+        
+    [[gitleaks.rules]]
+        id = "google-api-key"
+        description = "Google API Key"
+        regex = '''AIza[0-9A-Za-z\\-_]{35}'''
+        severity = "high"
+        tags = ["google", "api-key"]
+        
+    [[gitleaks.rules]]
+        id = "github-token"
+        description = "GitHub Personal Access Token"
+        regex = '''ghp_[a-zA-Z0-9]{36}'''
+        severity = "high"
+        tags = ["github", "token"]
+        
+    [[gitleaks.rules]]
+        id = "github-oauth-token"
+        description = "GitHub OAuth Token"
+        regex = '''gho_[a-zA-Z0-9]{36}'''
+        severity = "high"
+        tags = ["github", "oauth"]
+        
+    [[gitleaks.rules]]
+        id = "github-user-token"
+        description = "GitHub User Token"
+        regex = '''ghu_[a-zA-Z0-9]{36}'''
+        severity = "high"
+        tags = ["github", "user-token"]
+        
+    [[gitleaks.rules]]
+        id = "github-server-token"
+        description = "GitHub Server Token"
+        regex = '''ghs_[a-zA-Z0-9]{36}'''
+        severity = "high"
+        tags = ["github", "server-token"]
+        
+    [[gitleaks.rules]]
+        id = "github-refresh-token"
+        description = "GitHub Refresh Token"
+        regex = '''ghr_[a-zA-Z0-9]{36}'''
+        severity = "high"
+        tags = ["github", "refresh-token"]
+        
+    [[gitleaks.rules]]
+        id = "slack-token"
+        description = "Slack Token"
+        regex = '''xox[baprs]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}'''
+        severity = "high"
+        tags = ["slack", "token"]
+        
+    [[gitleaks.rules]]
+        id = "discord-token"
+        description = "Discord Bot Token"
+        regex = '''[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}'''
+        severity = "high"
+        tags = ["discord", "bot-token"]
+        
+    [[gitleaks.rules]]
+        id = "stripe-live-key"
+        description = "Stripe Live Secret Key"
+        regex = '''sk_live_[0-9a-zA-Z]{24}'''
+        severity = "high"
+        tags = ["stripe", "live-key"]
+        
+    [[gitleaks.rules]]
+        id = "stripe-live-publishable"
+        description = "Stripe Live Publishable Key"
+        regex = '''pk_live_[0-9a-zA-Z]{24}'''
+        severity = "high"
+        tags = ["stripe", "publishable-key"]
+        
+    [[gitleaks.rules]]
+        id = "jwt-token"
+        description = "JWT Token"
+        regex = '''eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*'''
+        severity = "medium"
+        tags = ["jwt", "token"]
+        
+    [[gitleaks.rules]]
+        id = "postgresql-url"
+        description = "PostgreSQL Connection URL"
+        regex = '''postgresql://[^:]+:[^@]+@[^/]+/[^\\s]+'''
+        severity = "high"
+        tags = ["postgresql", "database"]
+        
+    [[gitleaks.rules]]
+        id = "mysql-url"
+        description = "MySQL Connection URL"
+        regex = '''mysql://[^:]+:[^@]+@[^/]+/[^\\s]+'''
+        severity = "high"
+        tags = ["mysql", "database"]
+        
+    [[gitleaks.rules]]
+        id = "mongodb-url"
+        description = "MongoDB Connection URL"
+        regex = '''mongodb://[^:]+:[^@]+@[^/]+/[^\\s]+'''
+        severity = "high"
+        tags = ["mongodb", "database"]
+        
+    [[gitleaks.rules]]
+        id = "redis-url"
+        description = "Redis Connection URL"
+        regex = '''redis://[^:]+:[^@]+@[^/]+/[^\\s]+'''
+        severity = "high"
+        tags = ["redis", "database"]
+        
+    [[gitleaks.rules]]
+        id = "private-key-rsa"
+        description = "RSA Private Key"
+        regex = '''-----BEGIN RSA PRIVATE KEY-----'''
+        severity = "critical"
+        tags = ["rsa", "private-key"]
+        
+    [[gitleaks.rules]]
+        id = "private-key-ec"
+        description = "EC Private Key"
+        regex = '''-----BEGIN EC PRIVATE KEY-----'''
+        severity = "critical"
+        tags = ["ec", "private-key"]
+        
+    [[gitleaks.rules]]
+        id = "private-key-openssh"
+        description = "OpenSSH Private Key"
+        regex = '''-----BEGIN OPENSSH PRIVATE KEY-----'''
+        severity = "critical"
+        tags = ["openssh", "private-key"]
+        
+    [[gitleaks.rules]]
+        id = "private-key-generic"
+        description = "Generic Private Key"
+        regex = '''-----BEGIN PRIVATE KEY-----'''
+        severity = "critical"
+        tags = ["generic", "private-key"]
+        
+    [[gitleaks.rules]]
+        id = "azure-service-principal"
+        description = "Azure Service Principal"
+        regex = '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+        severity = "high"
+        tags = ["azure", "service-principal"]
+        
+    [[gitleaks.rules]]
+        id = "google-service-account"
+        description = "Google Service Account"
+        regex = '''"type":\s*"service_account"'''
+        severity = "high"
+        tags = ["google", "service-account"]
+        
+    [[gitleaks.rules]]
+        id = "aws-session-token"
+        description = "AWS Session Token"
+        regex = '''AWS_SESSION_TOKEN[=:]\s*['"]?[A-Za-z0-9+/=]{100,}['"]?'''
+        severity = "high"
+        tags = ["aws", "session-token"]
+        
+    [[gitleaks.rules]]
+        id = "azure-storage-key"
+        description = "Azure Storage Key"
+        regex = '''DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+'''
+        severity = "high"
+        tags = ["azure", "storage-key"]
+        
+    [[gitleaks.rules]]
+        id = "aes-key-32"
+        description = "AES Key (32 bytes)"
+        regex = '''[0-9a-fA-F]{64}'''
+        severity = "medium"
+        tags = ["aes", "cryptographic-key"]
+        
+    [[gitleaks.rules]]
+        id = "aes-key-16"
+        description = "AES Key (16 bytes)"
+        regex = '''[0-9a-fA-F]{32}'''
+        severity = "medium"
+        tags = ["aes", "cryptographic-key"]
+        
+    [[gitleaks.rules]]
+        id = "base64-key"
+        description = "Base64 Encoded Key"
+        regex = '''[A-Za-z0-9+/]{40,}={0,2}'''
+        severity = "low"
+        tags = ["base64", "key"]
+        
+    [[gitleaks.rules]]
+        id = "hex-key"
+        description = "Hex Encoded Key"
+        regex = '''0x[0-9a-fA-F]{32,}'''
+        severity = "medium"
+        tags = ["hex", "key"]
+        
+    [[gitleaks.rules]]
+        id = "x509-certificate"
+        description = "X.509 Certificate"
+        regex = '''-----BEGIN CERTIFICATE-----'''
+        severity = "medium"
+        tags = ["x509", "certificate"]
+        
+    [[gitleaks.rules]]
+        id = "certificate-request"
+        description = "Certificate Request"
+        regex = '''-----BEGIN CERTIFICATE REQUEST-----'''
+        severity = "medium"
+        tags = ["certificate", "request"]
+        
+    [[gitleaks.rules]]
+        id = "pkcs7-certificate"
+        description = "PKCS#7 Certificate"
+        regex = '''-----BEGIN PKCS7-----'''
+        severity = "medium"
+        tags = ["pkcs7", "certificate"]

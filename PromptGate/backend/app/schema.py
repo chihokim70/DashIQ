@@ -104,6 +104,53 @@ class VectorEmbedding(Base):
     similarity_threshold = Column(Float, default=0.75)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class PolicyRule(Base):
+    """정책 규칙 테이블 (OPA 정책 저장)"""
+    __tablename__ = "policy_rules"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String, index=True)  # 테넌트 ID
+    rule_name = Column(String, index=True)  # 규칙 이름
+    rule_type = Column(String)  # 'deny_pattern', 'pii_pattern', 'secret_pattern', 'length_limit', 'language_limit'
+    rule_pattern = Column(Text)  # 정규식 패턴 또는 규칙 정의
+    rule_value = Column(Text)  # 규칙 값 (예: 최대 길이, 허용 언어 등)
+    severity = Column(String)  # 'low', 'medium', 'high', 'critical'
+    action = Column(String)  # 'allow', 'deny', 'mask', 'sanitize', 'alert'
+    is_active = Column(Boolean, default=True)
+    policy_id = Column(Integer)  # Policy ID
+    created_by = Column(Integer)  # User ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PolicyAction(Base):
+    """정책 액션 테이블"""
+    __tablename__ = "policy_actions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String, index=True)  # 테넌트 ID
+    action_name = Column(String)  # 액션 이름 (예: 'suspicious', 'pii_found', 'secrets_found')
+    action_type = Column(String)  # 'sanitize', 'mask', 'deny', 'allow', 'alert'
+    action_config = Column(Text)  # 액션 설정 (JSON)
+    is_active = Column(Boolean, default=True)
+    policy_id = Column(Integer)  # Policy ID
+    created_by = Column(Integer)  # User ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PolicyAuditLog(Base):
+    """정책 감사 로그 테이블"""
+    __tablename__ = "policy_audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String, index=True)
+    policy_id = Column(Integer)
+    action_type = Column(String)  # 'create', 'update', 'delete', 'deploy'
+    action_details = Column(Text)  # 액션 상세 정보 (JSON)
+    user_id = Column(Integer)  # 수행한 사용자 ID
+    ip_address = Column(String)
+    user_agent = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class SystemConfig(Base):
     """시스템 설정 테이블"""
     __tablename__ = "system_configs"
