@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  promptgate_filter-service:
+    build: .
+    container_name: promptgate_filter-service
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=development
+      - ENABLE_ES_LOGGING=true
+      - ELASTICSEARCH_URL=http://aigov_elasticsearch:9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
+      - QDRANT_HOST=aigov_qdrant
+      - QDRANT_PORT=6333
+      - REBUFF_API_KEY=${REBUFF_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-dummy-key-for-testing}
+      - PINECONE_API_KEY=${PINECONE_API_KEY:-dummy-pinecone-key}
+      - PINECONE_INDEX=${PINECONE_INDEX:-dummy-index}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT:-dummy-env}
+      - DLP_ENABLED=false
+      - DLP_API_URL=http://mock-dlp-service:8080/api/v1/scan
+      - DLP_API_KEY=mock-dlp-key
+      - DLP_MOCK_MODE=true
+      - SECURITY_LEVEL=medium
+      - OPA_URL=http://promptgate_opa:8181
+      - PII_DETECTOR_URL=http://pii-detector:8082
+    volumes:
+      - ./backend/policy.db:/app/policy.db
+      - ./backend/policies:/app/policies
+    depends_on:
+      - promptgate_opa
+      - pii-detector
+    networks:
+      - promptgate-network
+      - database_aigov-network
+
+  promptgate_frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: promptgate_frontend
+    ports:
+      - "3001:8080"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - promptgate_filter-service
+    networks:
+      - promptgate-network
+
+  promptgate_opa:
+    image: openpolicyagent/opa:latest
+    container_name: promptgate_opa
+    ports:
+      - "8181:8181"
+    command: [
+      "run",
+      "--server",
+      "--addr=0.0.0.0:8181",
+      "--diagnostic-addr=0.0.0.0:8282",
+      "--set=decision_logs.console=true"
+    ]
+    volumes:
+      - ./backend/policies:/policies
+    networks:
+      - promptgate-network
+
+  # Presidio PII Detection Service
+  pii-detector:
+    build: ./services/pii-detector
+    container_name: promptgate_pii-detector
+    ports:
+      - "8082:8082"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./services/pii-detector/config:/app/config
+    networks:
+      - promptgate-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  promptgate-network:
+    driver: bridge
+    external: false
+  database_aigov-network:
+    external: true

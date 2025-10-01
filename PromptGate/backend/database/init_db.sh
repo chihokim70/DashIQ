@@ -118,3 +118,4 @@ echo -e "${YELLOW}💡 다음 단계:${NC}"
 echo "  1. 애플리케이션에서 .env.database 파일을 로드"
 echo "  2. 데이터베이스 연결 테스트"
 echo "  3. 필터링 기능 개발 진행"
+

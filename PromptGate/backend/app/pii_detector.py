@@ -1,6 +1,7 @@
 """
 PII (개인 식별 정보) 탐지기 구현
 오픈소스 도구와 자체 개발을 결합한 하이브리드 접근법
+Presidio 통합 버전
 """
 
 import re
@@ -13,6 +14,7 @@ import time
 import hashlib
 from datetime import datetime
 import os
+import toml
 
 # PII 탐지 라이브러리 import
 try:
@@ -26,6 +28,7 @@ try:
     from presidio_analyzer import AnalyzerEngine
     from presidio_anonymizer import AnonymizerEngine
     from presidio_analyzer.entities import RecognizerResult
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
     PRESIDIO_AVAILABLE = True
 except ImportError:
     PRESIDIO_AVAILABLE = False
@@ -36,6 +39,9 @@ try:
     from nltk.tree import Tree
     NLTK_AVAILABLE = True
 except ImportError:
+    NLTK_AVAILABLE = False
+except Exception as e:
+    print(f"NLTK import 실패: {e}")
     NLTK_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -166,8 +172,30 @@ class KoreanPIIPatterns:
         ]
     }
 
+class PresidioKoreanRecognizer:
+    """Presidio 한국어 커스텀 Recognizer"""
+    
+    def __init__(self):
+        self.patterns = KoreanPIIPatterns.PATTERNS
+        self.recognizers = {}
+        self._initialize_recognizers()
+    
+    def _initialize_recognizers(self):
+        """한국어 패턴 기반 Recognizer 초기화"""
+        for pii_type, patterns in self.patterns.items():
+            recognizer = {
+                'patterns': patterns,
+                'entity_type': pii_type.upper(),
+                'confidence': 0.8
+            }
+            self.recognizers[pii_type] = recognizer
+    
+    def get_recognizers(self) -> Dict[str, Any]:
+        """Presidio용 Recognizer 반환"""
+        return self.recognizers
+
 class AdvancedPIIDetector:
-    """고급 PII 탐지기 - 하이브리드 접근법 + DB/toml 연동"""
+    """고급 PII 탐지기 - 하이브리드 접근법 + DB/toml 연동 + Presidio 통합"""
     
     def __init__(self):
         self.patterns = KoreanPIIPatterns.PATTERNS  # 기본 패턴 (fallback)
@@ -200,12 +228,45 @@ class AdvancedPIIDetector:
         # Presidio 초기화
         self.analyzer = None
         self.anonymizer = None
+        self.korean_recognizer = None
+        
         if PRESIDIO_AVAILABLE:
             try:
-                self.analyzer = AnalyzerEngine()
-                self.anonymizer = AnonymizerEngine()
+                # 한국어 커스텀 Recognizer 초기화
+                self.korean_recognizer = PresidioKoreanRecognizer()
+                
+                # Presidio Analyzer 초기화 (예외 처리 강화)
+                try:
+                    self.analyzer = AnalyzerEngine()
+                    logger.info("Presidio Analyzer 초기화 성공")
+                except Exception as analyzer_error:
+                    logger.warning(f"Presidio Analyzer 초기화 실패: {analyzer_error}")
+                    self.analyzer = None
+                
+                # Presidio Anonymizer 초기화 (예외 처리 강화)
+                try:
+                    self.anonymizer = AnonymizerEngine()
+                    logger.info("Presidio Anonymizer 초기화 성공")
+                except Exception as anonymizer_error:
+                    logger.warning(f"Presidio Anonymizer 초기화 실패: {anonymizer_error}")
+                    self.anonymizer = None
+                
+                # Presidio 상태 확인 및 업데이트
+                if self.analyzer and self.anonymizer:
+                    logger.info("Presidio Analyzer/Anonymizer 초기화 완료")
+                    self.scanner_status["presidio"] = True
+                elif self.analyzer or self.anonymizer:
+                    logger.warning("Presidio 일부 기능만 사용 가능")
+                    self.scanner_status["presidio"] = False
+                else:
+                    logger.warning("Presidio 초기화 실패. 정규식 기반 탐지만 사용")
+                    self.scanner_status["presidio"] = False
+                    
             except Exception as e:
                 logger.error(f"Presidio 초기화 실패: {e}")
+                self.scanner_status["presidio"] = False
+                self.analyzer = None
+                self.anonymizer = None
         
         # NLTK 초기화
         if NLTK_AVAILABLE:
@@ -302,7 +363,56 @@ class AdvancedPIIDetector:
             return False
     
     async def scan_text(self, text: str, context: str = "") -> PIIScanResult:
-        """텍스트에서 PII 스캔"""
+        """텍스트에서 PII 스캔 - 마이크로서비스 우선 사용"""
+        start_time = time.time()
+        
+        try:
+            # PII Detection Service 사용 시도
+            from .pii_client import get_pii_client
+            
+            pii_client = await get_pii_client()
+            service_result = await pii_client.detect_pii(text, context, "ko")
+            
+            if service_result.get("scanner_status", {}).get("presidio", False):
+                # 마이크로서비스에서 성공적으로 탐지된 경우
+                logger.info("PII Detection Service를 통한 탐지 성공")
+                
+                # 서비스 결과를 PIIScanResult로 변환
+                pii_matches = []
+                for match_data in service_result.get("pii_matches", []):
+                    pii_match = PIIMatch(
+                        pii_type=PIIType(match_data["pii_type"]),
+                        confidence=PIIConfidence(match_data["confidence"]),
+                        pattern=match_data["pattern"],
+                        matched_text=match_data["matched_text"],
+                        start_pos=match_data["start_pos"],
+                        end_pos=match_data["end_pos"],
+                        context=match_data.get("context", context),
+                        metadata=match_data.get("metadata", {})
+                    )
+                    pii_matches.append(pii_match)
+                
+                return PIIScanResult(
+                    has_pii=service_result["has_pii"],
+                    pii_matches=pii_matches,
+                    total_pii=service_result["total_pii"],
+                    high_confidence_pii=service_result["high_confidence_pii"],
+                    risk_score=service_result["risk_score"],
+                    processing_time=service_result["processing_time"],
+                    scanner_status=service_result["scanner_status"],
+                    error_messages=service_result.get("error_messages", [])
+                )
+            else:
+                # 마이크로서비스 실패 시 로컬 탐지 사용
+                logger.warning("PII Detection Service 실패, 로컬 탐지 사용")
+                return await self._scan_text_local(text, context)
+                
+        except Exception as e:
+            logger.warning(f"PII Detection Service 통신 실패: {e}, 로컬 탐지 사용")
+            return await self._scan_text_local(text, context)
+    
+    async def _scan_text_local(self, text: str, context: str = "") -> PIIScanResult:
+        """로컬 PII 스캔 (fallback)"""
         start_time = time.time()
         pii_matches = []
         error_messages = []
@@ -320,7 +430,7 @@ class AdvancedPIIDetector:
                 except Exception as e:
                     error_messages.append(f"spaCy 스캔 실패: {e}")
             
-            # 3. Presidio 스캔
+            # 3. Presidio 스캔 (로컬)
             if self.analyzer:
                 try:
                     presidio_matches = await self._scan_with_presidio(text, context)
@@ -341,7 +451,7 @@ class AdvancedPIIDetector:
             pii_matches.sort(key=lambda x: (x.confidence.value, x.start_pos))
             
             # 결과 집계
-            high_confidence_count = sum(1 for m in pii_matches if m.confidence in [PIIConfidence.HIGH, PIIConfidence.VERY_HIGH])
+            high_confidence_count = sum(1 for m in pii_matches if m.confidence in [PIIConfidence.HIGH, PIIConfidence.CRITICAL])
             risk_score = self._calculate_risk_score(pii_matches)
             
             processing_time = time.time() - start_time
@@ -358,14 +468,14 @@ class AdvancedPIIDetector:
             )
             
         except Exception as e:
-            logger.error(f"PII 스캔 실패: {e}")
+            logger.error(f"로컬 PII 스캔 실패: {e}")
             return PIIScanResult(
                 has_pii=False,
                 pii_matches=[],
                 risk_score=0.0,
                 processing_time=time.time() - start_time,
                 scanner_status=self.scanner_status,
-                error_messages=[f"스캔 실패: {e}"]
+                error_messages=[f"로컬 스캔 실패: {e}"]
             )
     
     async def _scan_with_regex(self, text: str, context: str) -> List[PIIMatch]:
@@ -459,10 +569,12 @@ class AdvancedPIIDetector:
         matches = []
         
         if not self.analyzer:
+            logger.debug("Presidio Analyzer가 초기화되지 않음. 스캔 건너뜀.")
             return matches
         
         try:
-            results = self.analyzer.analyze(text=text, language='en')
+            # Presidio Analyzer로 PII 탐지
+            results = self.analyzer.analyze(text=text, language='ko')
             
             for result in results:
                 pii_type = self._map_presidio_entity_to_pii_type(result.entity_type)
@@ -478,14 +590,17 @@ class AdvancedPIIDetector:
                     context=context,
                     metadata={
                         "scanner": "presidio",
-                        "presidio_entity": result.entity_type,
-                        "presidio_score": result.score
+                        "entity_type": result.entity_type,
+                        "score": result.score,
+                        "pattern_source": "presidio"
                     }
                 )
                 matches.append(pii_match)
             
+            logger.debug(f"Presidio 스캔 완료: {len(matches)}개 PII 탐지")
+            
         except Exception as e:
-            logger.error(f"Presidio 스캔 실패: {e}")
+            logger.warning(f"Presidio 스캔 실패: {e}")
         
         return matches
     
@@ -664,7 +779,53 @@ class AdvancedPIIDetector:
         return self.scanner_status.copy()
     
     def anonymize_text(self, text: str, matches: List[PIIMatch]) -> str:
-        """텍스트 익명화"""
+        """텍스트 익명화 - 마이크로서비스 우선 사용"""
+        if not matches:
+            return text
+        
+        try:
+            # PII Detection Service 사용 시도
+            from .pii_client import get_pii_client
+            import asyncio
+            
+            # 동기 함수에서 비동기 클라이언트 사용
+            async def _anonymize_with_service():
+                pii_client = await get_pii_client()
+                
+                # PIIMatch를 딕셔너리로 변환
+                matches_data = []
+                for match in matches:
+                    match_data = {
+                        "pii_type": match.pii_type.value,
+                        "confidence": match.confidence.value,
+                        "pattern": match.pattern,
+                        "matched_text": match.matched_text,
+                        "start_pos": match.start_pos,
+                        "end_pos": match.end_pos,
+                        "context": match.context,
+                        "metadata": match.metadata
+                    }
+                    matches_data.append(match_data)
+                
+                result = await pii_client.anonymize_pii(text, matches_data, "mask")
+                return result.get("anonymized_text", text)
+            
+            # 비동기 함수 실행
+            anonymized_text = asyncio.run(_anonymize_with_service())
+            
+            if anonymized_text != text:
+                logger.info("PII Detection Service를 통한 익명화 성공")
+                return anonymized_text
+            else:
+                logger.warning("PII Detection Service 익명화 실패, 로컬 익명화 사용")
+                return self._anonymize_text_local(text, matches)
+                
+        except Exception as e:
+            logger.warning(f"PII Detection Service 익명화 통신 실패: {e}, 로컬 익명화 사용")
+            return self._anonymize_text_local(text, matches)
+    
+    def _anonymize_text_local(self, text: str, matches: List[PIIMatch]) -> str:
+        """로컬 익명화 (fallback)"""
         anonymized_text = text
         
         # 위치 기준으로 역순 정렬 (뒤에서부터 마스킹)
@@ -684,6 +845,39 @@ class AdvancedPIIDetector:
             )
         
         return anonymized_text
+    
+    async def anonymize_with_presidio(self, text: str, pii_matches: List[PIIMatch]) -> str:
+        """Presidio를 사용한 PII 익명화"""
+        if not self.anonymizer or not pii_matches:
+            return text
+        
+        try:
+            # PIIMatch를 Presidio RecognizerResult로 변환
+            presidio_results = []
+            for match in pii_matches:
+                if match.metadata.get("scanner") == "presidio":
+                    result = RecognizerResult(
+                        entity_type=match.metadata.get("entity_type", "UNKNOWN"),
+                        start=match.start_pos,
+                        end=match.end_pos,
+                        score=match.metadata.get("score", 0.8)
+                    )
+                    presidio_results.append(result)
+            
+            if not presidio_results:
+                return text
+            
+            # Presidio Anonymizer로 익명화
+            anonymized_result = self.anonymizer.anonymize(
+                text=text,
+                analyzer_results=presidio_results
+            )
+            
+            return anonymized_result.text
+            
+        except Exception as e:
+            logger.error(f"Presidio 익명화 실패: {e}")
+            return text
     
     def _get_mask_character(self, pii_type: PIIType) -> str:
         """PII 타입별 마스킹 문자 반환"""

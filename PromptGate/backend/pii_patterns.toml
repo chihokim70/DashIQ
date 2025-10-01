@@ -105,3 +105,4 @@ other = [
     { regex = '''\b0x[0-9a-fA-F]{32,}\b''', severity = "medium", description = "Hex 인코딩된 데이터" },
     { regex = '''\b[A-Za-z0-9]{20,}\b''', severity = "low", description = "긴 알파벳 숫자 조합" },
 ]
+

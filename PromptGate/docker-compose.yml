@@ -25,11 +25,13 @@ services:
       - DLP_MOCK_MODE=true
       - SECURITY_LEVEL=medium
       - OPA_URL=http://promptgate_opa:8181
+      - PII_DETECTOR_URL=http://pii-detector:8082
     volumes:
       - ./backend/policy.db:/app/policy.db
       - ./backend/policies:/app/policies
     depends_on:
       - promptgate_opa
+      - pii-detector
     networks:
       - promptgate-network
       - database_aigov-network
@@ -65,9 +67,28 @@ services:
     networks:
       - promptgate-network
 
+  # Presidio PII Detection Service
+  pii-detector:
+    build: ./services/pii-detector
+    container_name: promptgate_pii-detector
+    ports:
+      - "8082:8082"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./services/pii-detector/config:/app/config
+    networks:
+      - promptgate-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
   promptgate-network:
     driver: bridge
-    external: false
   database_aigov-network:
     external: true

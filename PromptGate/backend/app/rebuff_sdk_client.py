@@ -255,21 +255,46 @@ class RebuffSDKClient:
         )
     
     def get_status(self) -> Dict[str, Any]:
-        """SDK 상태 조회"""
+        """Rebuff SDK 상태 조회"""
         return {
-            "is_initialized": self.is_initialized,
+            "initialized": self.is_initialized,
+            "has_openai": bool(self.openai_api_key),
             "has_pinecone": bool(self.pinecone_api_key and self.pinecone_index),
-            "openai_model": self.openai_model,
-            "sdk_version": self._get_sdk_version()
+            "model": self.openai_model,
+            "client_available": self.rebuff_client is not None
         }
+
+# 싱글톤 패턴을 위한 전역 변수
+_rebuff_client_instance: Optional[RebuffSDKClient] = None
+
+async def get_rebuff_client() -> RebuffSDKClient:
+    """Rebuff SDK 클라이언트 싱글톤 인스턴스 반환"""
+    global _rebuff_client_instance
     
-    def _get_sdk_version(self) -> str:
-        """SDK 버전 조회"""
-        try:
-            import rebuff
-            return getattr(rebuff, '__version__', 'unknown')
-        except:
-            return 'not_installed'
+    if _rebuff_client_instance is None:
+        import os
+        from app.config import get_settings
+        
+        settings = get_settings()
+        
+        _rebuff_client_instance = RebuffSDKClient(
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+            pinecone_index=os.getenv("PINECONE_INDEX_NAME"),
+            openai_model="gpt-3.5-turbo"
+        )
+        
+        logger.info("Rebuff SDK 클라이언트 싱글톤 인스턴스 생성 완료")
+    
+    return _rebuff_client_instance
+
+async def close_rebuff_client():
+    """Rebuff SDK 클라이언트 정리"""
+    global _rebuff_client_instance
+    
+    if _rebuff_client_instance:
+        logger.info("Rebuff SDK 클라이언트 정리 완료")
+        _rebuff_client_instance = None
 
 # 환경변수에서 설정 로드
 def create_rebuff_client() -> RebuffSDKClient:

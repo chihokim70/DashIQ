@@ -7,6 +7,9 @@ from app.hybrid_security import get_hybrid_security_engine, close_hybrid_securit
 from app.policy_engine import get_policy_engine, close_policy_engine
 from app.secret_scanner import get_secret_scanner, close_secret_scanner
 from app.pii_detector import get_pii_detector, close_pii_detector
+from app.rebuff_sdk_client import get_rebuff_client, close_rebuff_client
+from app.ml_classifier import get_ml_classifier, close_ml_classifier
+from app.embedding_filter import get_embedding_filter, close_embedding_filter
 from app.db_filter_engine import get_db_filter_engine
 from datetime import datetime
 import asyncio
@@ -70,6 +73,30 @@ async def startup_event():
         logger.error(f"PII 탐지기 초기화 실패: {e}")
     
     try:
+        # Rebuff SDK 클라이언트 초기화
+        rebuff_client = await get_rebuff_client()
+        rebuff_status = rebuff_client.get_status()
+        logger.info(f"Rebuff SDK 클라이언트 상태: {rebuff_status}")
+    except Exception as e:
+        logger.error(f"Rebuff SDK 클라이언트 초기화 실패: {e}")
+    
+    try:
+        # ML Classifier 초기화
+        ml_classifier = await get_ml_classifier()
+        ml_status = ml_classifier.get_status()
+        logger.info(f"ML Classifier 상태: {ml_status}")
+    except Exception as e:
+        logger.error(f"ML Classifier 초기화 실패: {e}")
+    
+    try:
+        # Embedding Filter 초기화
+        embedding_filter = await get_embedding_filter()
+        embedding_status = embedding_filter.get_status()
+        logger.info(f"Embedding Filter 상태: {embedding_status}")
+    except Exception as e:
+        logger.error(f"Embedding Filter 초기화 실패: {e}")
+    
+    try:
         # DB 필터링 엔진 초기화
         db_filter_engine = get_db_filter_engine()
         logger.info("DB 필터링 엔진 초기화 완료")
@@ -84,6 +111,9 @@ async def shutdown_event():
     await close_policy_engine()
     await close_secret_scanner()
     await close_pii_detector()
+    await close_rebuff_client()
+    await close_ml_classifier()
+    await close_embedding_filter()
 
 @app.post("/prompt/check")
 async def check_prompt(request: Request):

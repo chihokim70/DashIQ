@@ -30,3 +30,17 @@ detect-secrets>=1.4.0
 pyahocorasick>=2.0.0  # Aho-Corasick algorithm for pattern matching
 cryptography>=41.0.0  # For cryptographic pattern detection
 toml>=0.10.2  # For parsing gitleaks.toml configuration files
+
+# PII Detection libraries
+presidio-analyzer>=2.2.0  # Microsoft Presidio PII detection
+presidio-anonymizer>=2.2.0  # Microsoft Presidio PII anonymization
+spacy>=3.7.0  # NLP-based PII detection
+nltk>=3.8.0  # Natural language processing
+# ML Classifier 의존성
+scikit-learn>=1.3.0
+transformers>=4.30.0
+torch>=2.0.0
+numpy>=1.24.0
+# Embedding Filter 의존성
+sentence-transformers>=2.2.0
+qdrant-client>=1.6.0

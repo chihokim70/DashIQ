@@ -469,3 +469,4 @@ INSERT INTO integrations (tenant_id, kind, name, config, enabled) VALUES
 (1, 'metrics', 'prometheus', '{"endpoint": "http://localhost:9090"}', true);
 
 COMMIT;
+
