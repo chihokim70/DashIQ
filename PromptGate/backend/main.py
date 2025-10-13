@@ -23,85 +23,101 @@ app.include_router(api_router, prefix="/api/v1", tags=["chat"])
 
 @app.on_event("startup")
 async def startup_event():
-    """애플리케이션 시작 시 보안 엔진 및 정책 엔진 초기화"""
+    """애플리케이션 시작 시 보안 엔진 및 정책 엔진 초기화 (병렬 처리)"""
     logger.info("PromptGate 서비스 시작 - 보안 엔진 및 정책 엔진 초기화")
     
-    try:
-        # 하이브리드 보안 엔진 초기화
-        engine = await get_hybrid_security_engine()
-        status = await engine.get_security_status()
-        logger.info(f"하이브리드 보안 엔진 상태: {status}")
-    except Exception as e:
-        logger.error(f"하이브리드 보안 엔진 초기화 실패: {e}")
+    # 병렬 초기화를 위한 태스크 리스트
+    init_tasks = []
     
-    try:
-        # OPA 정책 엔진 초기화
-        policy_engine = await get_policy_engine()
-        policy_status = await policy_engine.get_policy_status()
-        logger.info(f"정책 엔진 상태: {policy_status}")
-    except Exception as e:
-        logger.error(f"정책 엔진 초기화 실패: {e}")
+    # 1. 하이브리드 보안 엔진 초기화
+    async def init_hybrid_security():
+        try:
+            engine = await get_hybrid_security_engine()
+            status = await engine.get_security_status()
+            logger.info(f"하이브리드 보안 엔진 상태: {status}")
+        except Exception as e:
+            logger.error(f"하이브리드 보안 엔진 초기화 실패: {e}")
     
-    try:
-        # Secret Scanner 초기화
-        secret_scanner = await get_secret_scanner()
-        
-        # DB에서 패턴 로드 (우선순위 1)
-        await secret_scanner.load_patterns_from_db(tenant_id=1)
-        
-        # TOML에서 패턴 로드 (우선순위 2)
-        await secret_scanner.load_patterns_from_toml()
-        
-        scanner_status = secret_scanner.get_scanner_status()
-        logger.info(f"Secret Scanner 상태: {scanner_status}")
-    except Exception as e:
-        logger.error(f"Secret Scanner 초기화 실패: {e}")
+    # 2. OPA 정책 엔진 초기화
+    async def init_policy_engine():
+        try:
+            policy_engine = await get_policy_engine()
+            policy_status = await policy_engine.get_policy_status()
+            logger.info(f"정책 엔진 상태: {policy_status}")
+        except Exception as e:
+            logger.error(f"정책 엔진 초기화 실패: {e}")
     
-    try:
-        # PII 탐지기 초기화
-        pii_detector = await get_pii_detector()
-        
-        # DB에서 패턴 로드 (우선순위 1)
-        await pii_detector.load_patterns_from_db(tenant_id=1)
-        
-        # TOML에서 패턴 로드 (우선순위 2)
-        await pii_detector.load_patterns_from_toml()
-        
-        pii_status = pii_detector.get_scanner_status()
-        logger.info(f"PII 탐지기 상태: {pii_status}")
-    except Exception as e:
-        logger.error(f"PII 탐지기 초기화 실패: {e}")
+    # 3. Secret Scanner 초기화
+    async def init_secret_scanner():
+        try:
+            secret_scanner = await get_secret_scanner()
+            await secret_scanner.load_patterns_from_db(tenant_id=1)
+            await secret_scanner.load_patterns_from_toml()
+            scanner_status = secret_scanner.get_scanner_status()
+            logger.info(f"Secret Scanner 상태: {scanner_status}")
+        except Exception as e:
+            logger.error(f"Secret Scanner 초기화 실패: {e}")
     
-    try:
-        # Rebuff SDK 클라이언트 초기화
-        rebuff_client = await get_rebuff_client()
-        rebuff_status = rebuff_client.get_status()
-        logger.info(f"Rebuff SDK 클라이언트 상태: {rebuff_status}")
-    except Exception as e:
-        logger.error(f"Rebuff SDK 클라이언트 초기화 실패: {e}")
+    # 4. PII 탐지기 초기화
+    async def init_pii_detector():
+        try:
+            pii_detector = await get_pii_detector()
+            await pii_detector.load_patterns_from_db(tenant_id=1)
+            await pii_detector.load_patterns_from_toml()
+            pii_status = pii_detector.get_scanner_status()
+            logger.info(f"PII 탐지기 상태: {pii_status}")
+        except Exception as e:
+            logger.error(f"PII 탐지기 초기화 실패: {e}")
     
-    try:
-        # ML Classifier 초기화
-        ml_classifier = await get_ml_classifier()
-        ml_status = ml_classifier.get_status()
-        logger.info(f"ML Classifier 상태: {ml_status}")
-    except Exception as e:
-        logger.error(f"ML Classifier 초기화 실패: {e}")
+    # 5. Rebuff SDK 클라이언트 초기화
+    async def init_rebuff_client():
+        try:
+            rebuff_client = await get_rebuff_client()
+            rebuff_status = rebuff_client.get_status()
+            logger.info(f"Rebuff SDK 클라이언트 상태: {rebuff_status}")
+        except Exception as e:
+            logger.error(f"Rebuff SDK 클라이언트 초기화 실패: {e}")
     
-    try:
-        # Embedding Filter 초기화
-        embedding_filter = await get_embedding_filter()
-        embedding_status = embedding_filter.get_status()
-        logger.info(f"Embedding Filter 상태: {embedding_status}")
-    except Exception as e:
-        logger.error(f"Embedding Filter 초기화 실패: {e}")
+    # 6. ML Classifier 초기화
+    async def init_ml_classifier():
+        try:
+            ml_classifier = await get_ml_classifier()
+            ml_status = ml_classifier.get_status()
+            logger.info(f"ML Classifier 상태: {ml_status}")
+        except Exception as e:
+            logger.error(f"ML Classifier 초기화 실패: {e}")
     
-    try:
-        # DB 필터링 엔진 초기화
-        db_filter_engine = get_db_filter_engine()
-        logger.info("DB 필터링 엔진 초기화 완료")
-    except Exception as e:
-        logger.error(f"DB 필터링 엔진 초기화 실패: {e}")
+    # 7. Embedding Filter 초기화
+    async def init_embedding_filter():
+        try:
+            embedding_filter = await get_embedding_filter()
+            embedding_status = embedding_filter.get_status()
+            logger.info(f"Embedding Filter 상태: {embedding_status}")
+        except Exception as e:
+            logger.error(f"Embedding Filter 초기화 실패: {e}")
+    
+    # 8. DB 필터링 엔진 초기화
+    async def init_db_filter_engine():
+        try:
+            db_filter_engine = get_db_filter_engine()
+            logger.info("DB 필터링 엔진 초기화 완료")
+        except Exception as e:
+            logger.error(f"DB 필터링 엔진 초기화 실패: {e}")
+    
+    # 모든 초기화 태스크를 병렬로 실행
+    init_tasks = [
+        init_hybrid_security(),
+        init_policy_engine(),
+        init_secret_scanner(),
+        init_pii_detector(),
+        init_rebuff_client(),
+        init_ml_classifier(),
+        init_embedding_filter(),
+        init_db_filter_engine()
+    ]
+    
+    # 병렬 실행
+    await asyncio.gather(*init_tasks, return_exceptions=True)
     
     logger.info("PromptGate 서비스 초기화 완료")
 
