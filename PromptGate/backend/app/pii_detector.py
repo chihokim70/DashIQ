@@ -810,8 +810,8 @@ class AdvancedPIIDetector:
                 result = await pii_client.anonymize_pii(text, matches_data, "mask")
                 return result.get("anonymized_text", text)
             
-            # 비동기 함수 실행
-            anonymized_text = asyncio.run(_anonymize_with_service())
+            # 비동기 함수 실행 - await 사용으로 수정
+            anonymized_text = await _anonymize_with_service()
             
             if anonymized_text != text:
                 logger.info("PII Detection Service를 통한 익명화 성공")

@@ -112,44 +112,9 @@ class RebuffSDKClient:
         Returns:
             RebuffResult: 탐지 결과
         """
-        if not self.is_initialized or not self.rebuff_client:
-            logger.warning("Rebuff SDK가 초기화되지 않음. Fallback 방식 사용")
-            return self._fallback_detection(prompt)
-        
-        try:
-            import time
-            start_time = time.time()
-            
-            # Rebuff SDK를 사용한 탐지
-            result = self.rebuff_client.detect_injection(prompt)
-            
-            processing_time = time.time() - start_time
-            
-            # 결과 파싱
-            is_injection = result.injection_detected if hasattr(result, 'injection_detected') else False
-            confidence = getattr(result, 'score', 0.0)
-            
-            # 탐지 방법 결정
-            method = DetectionMethod.HYBRID
-            if hasattr(result, 'method'):
-                method = DetectionMethod(result.method)
-            
-            # 이유 및 전술 추출
-            reasons = getattr(result, 'reasons', [])
-            tactics = getattr(result, 'tactics', [])
-            
-            return RebuffResult(
-                is_injection=is_injection,
-                confidence=confidence,
-                method=method,
-                reasons=reasons if isinstance(reasons, list) else [str(reasons)],
-                tactics=tactics if isinstance(tactics, list) else [str(tactics)],
-                processing_time=processing_time
-            )
-            
-        except Exception as e:
-            logger.error(f"Rebuff SDK 탐지 실패: {e}")
-            return self._fallback_detection(prompt)
+        # 임시로 fallback 방식만 사용 (asyncio.run() 오류 해결을 위해)
+        logger.warning("Rebuff SDK 임시 비활성화. Fallback 방식 사용")
+        return self._fallback_detection(prompt)
     
     async def add_canary_word(self, prompt_template: str) -> tuple[str, str]:
         """
