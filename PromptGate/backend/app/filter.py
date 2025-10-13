@@ -263,35 +263,103 @@ async def evaluate_prompt(prompt: str, user_id: int = None, session_id: str = No
     start_time = time.time()
     
     try:
-        # 1. 기본 키워드 필터링
-        blocked_keywords = get_block_keywords()
-        if any(keyword in prompt.lower() for keyword in blocked_keywords):
+        # 1. 기본 키워드 필터링 (개선된 버전)
+        # 하드코딩된 악성 키워드들 (데이터베이스 연결 문제 대비)
+        hardcoded_blocked_keywords = [
+            "ignore all previous instructions",
+            "forget everything",
+            "you are now",
+            "pretend to be",
+            "act as if",
+            "roleplay as",
+            "jailbreak",
+            "dan mode",
+            "developer mode",
+            "admin mode",
+            "system prompt",
+            "override",
+            "bypass",
+            "hack",
+            "exploit",
+            "malicious",
+            "harmful",
+            "dangerous",
+            "illegal",
+            "unethical"
+        ]
+        
+        # 데이터베이스에서 키워드 가져오기 시도
+        try:
+            db_blocked_keywords = get_block_keywords()
+            all_blocked_keywords = hardcoded_blocked_keywords + db_blocked_keywords
+        except Exception as e:
+            logger.warning(f"데이터베이스 키워드 로드 실패, 하드코딩된 키워드만 사용: {e}")
+            all_blocked_keywords = hardcoded_blocked_keywords
+        
+        # 키워드 검사 (대소문자 무시)
+        prompt_lower = prompt.lower()
+        detected_keywords = [keyword for keyword in all_blocked_keywords if keyword.lower() in prompt_lower]
+        
+        if detected_keywords:
             return {
                 "is_blocked": True,
-                "reason": "차단된 키워드가 포함되어 있습니다",
+                "reason": f"차단된 키워드가 포함되어 있습니다: {', '.join(detected_keywords[:3])}",
                 "detection_method": "keyword_filter",
                 "risk_score": 1.0,
                 "masked_prompt": mask_prompt(prompt),
-                "processing_time": time.time() - start_time
+                "processing_time": time.time() - start_time,
+                "detected_keywords": detected_keywords
             }
         
-        # 2. Rebuff SDK를 통한 프롬프트 인젝션 탐지
+        # 2. Rebuff SDK를 통한 프롬프트 인젝션 탐지 (개선된 버전)
         try:
             from app.rebuff_sdk_client import get_rebuff_client
             rebuff_client = await get_rebuff_client()
             rebuff_result = await rebuff_client.detect_injection(prompt)
             
-            if rebuff_result.is_injection:
+            # Rebuff SDK 결과 확인 (더 엄격한 기준 적용)
+            if rebuff_result.is_injection or rebuff_result.heuristic_score > 0.5:
                 return {
                     "is_blocked": True,
                     "reason": f"프롬프트 인젝션 탐지: {rebuff_result.reason}",
                     "detection_method": "rebuff_sdk",
                     "risk_score": rebuff_result.heuristic_score,
                     "masked_prompt": mask_prompt(prompt),
-                    "processing_time": time.time() - start_time
+                    "processing_time": time.time() - start_time,
+                    "rebuff_details": {
+                        "is_injection": rebuff_result.is_injection,
+                        "heuristic_score": rebuff_result.heuristic_score,
+                        "vector_score": getattr(rebuff_result, 'vector_score', 0.0),
+                        "model_score": getattr(rebuff_result, 'model_score', 0.0)
+                    }
                 }
         except Exception as e:
             logger.warning(f"Rebuff SDK 탐지 실패: {e}")
+            # Rebuff SDK 실패 시 추가적인 패턴 기반 탐지
+            injection_patterns = [
+                r"ignore\s+all\s+previous\s+instructions",
+                r"forget\s+everything",
+                r"you\s+are\s+now\s+",
+                r"pretend\s+to\s+be",
+                r"act\s+as\s+if",
+                r"roleplay\s+as",
+                r"jailbreak",
+                r"dan\s+mode",
+                r"developer\s+mode",
+                r"admin\s+mode"
+            ]
+            
+            import re
+            for pattern in injection_patterns:
+                if re.search(pattern, prompt.lower()):
+                    return {
+                        "is_blocked": True,
+                        "reason": f"패턴 기반 프롬프트 인젝션 탐지: {pattern}",
+                        "detection_method": "pattern_fallback",
+                        "risk_score": 0.8,
+                        "masked_prompt": mask_prompt(prompt),
+                        "processing_time": time.time() - start_time
+                    }
         
         # 3. 벡터 유사도 검사
         try:
@@ -311,23 +379,65 @@ async def evaluate_prompt(prompt: str, user_id: int = None, session_id: str = No
         except Exception as e:
             logger.warning(f"벡터 유사도 검사 실패: {e}")
         
-        # 4. ML 분류기 검사
+        # 4. ML 분류기 검사 (개선된 버전)
         try:
             from app.ml_classifier import get_ml_classifier
             ml_classifier = await get_ml_classifier()
             classification_result = await ml_classifier.classify_prompt(prompt)
             
-            if classification_result["is_malicious"]:
+            # 더 엄격한 기준 적용 (confidence > 0.3이면 차단)
+            if classification_result["is_malicious"] or classification_result.get("confidence", 0) > 0.3:
                 return {
                     "is_blocked": True,
                     "reason": f"악성 프롬프트로 분류됨: {classification_result['reason']}",
                     "detection_method": "ml_classifier",
-                    "risk_score": classification_result["confidence"],
+                    "risk_score": classification_result.get("confidence", 0.5),
                     "masked_prompt": mask_prompt(prompt),
-                    "processing_time": time.time() - start_time
+                    "processing_time": time.time() - start_time,
+                    "ml_details": {
+                        "is_malicious": classification_result.get("is_malicious", False),
+                        "confidence": classification_result.get("confidence", 0.0),
+                        "predicted_class": classification_result.get("predicted_class", "unknown"),
+                        "model_used": classification_result.get("model_used", "unknown")
+                    }
                 }
         except Exception as e:
             logger.warning(f"ML 분류기 검사 실패: {e}")
+            # ML 분류기 실패 시 추가적인 휴리스틱 검사
+            heuristic_score = 0.0
+            heuristic_reasons = []
+            
+            # 길이 기반 의심스러운 패턴
+            if len(prompt) > 1000:
+                heuristic_score += 0.2
+                heuristic_reasons.append("과도하게 긴 프롬프트")
+            
+            # 특수 문자 비율
+            special_chars = sum(1 for c in prompt if not c.isalnum() and not c.isspace())
+            if special_chars / len(prompt) > 0.3:
+                heuristic_score += 0.2
+                heuristic_reasons.append("과도한 특수 문자 사용")
+            
+            # 반복 패턴
+            words = prompt.lower().split()
+            if len(words) > 10:
+                word_counts = {}
+                for word in words:
+                    word_counts[word] = word_counts.get(word, 0) + 1
+                max_repetition = max(word_counts.values())
+                if max_repetition > len(words) * 0.3:
+                    heuristic_score += 0.3
+                    heuristic_reasons.append("의심스러운 반복 패턴")
+            
+            if heuristic_score > 0.5:
+                return {
+                    "is_blocked": True,
+                    "reason": f"휴리스틱 기반 악성 프롬프트 탐지: {', '.join(heuristic_reasons)}",
+                    "detection_method": "heuristic_fallback",
+                    "risk_score": heuristic_score,
+                    "masked_prompt": mask_prompt(prompt),
+                    "processing_time": time.time() - start_time
+                }
         
         # 5. 모든 검사를 통과한 경우
         return {
