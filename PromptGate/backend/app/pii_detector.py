@@ -778,7 +778,7 @@ class AdvancedPIIDetector:
         """스캐너 상태 반환"""
         return self.scanner_status.copy()
     
-    def anonymize_text(self, text: str, matches: List[PIIMatch]) -> str:
+    async def anonymize_text(self, text: str, matches: List[PIIMatch]) -> str:
         """텍스트 익명화 - 마이크로서비스 우선 사용"""
         if not matches:
             return text

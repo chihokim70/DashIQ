@@ -248,7 +248,7 @@ async def evaluate_prompt_with_policy(
 
 async def evaluate_prompt(prompt: str, user_id: int = None, session_id: str = None, ip_address: str = None, user_agent: str = None) -> Dict[str, Any]:
     """
-    기존 프롬프트 평가 및 필터링 (하위 호환성 유지)
+    기존 프롬프트 평가 및 필터링 (하위 호환성 유지) - 실제 필터링 로직 복원
     
     Args:
         prompt: 평가할 프롬프트
@@ -262,14 +262,91 @@ async def evaluate_prompt(prompt: str, user_id: int = None, session_id: str = No
     """
     start_time = time.time()
     
-    # 완전히 단순한 응답 반환
-    result = {
-        "is_blocked": False,
-        "reason": "프롬프트가 안전합니다",
-        "detection_method": "simple",
-        "risk_score": 0.0,
-        "masked_prompt": prompt,
-        "processing_time": time.time() - start_time
-    }
-    
-    return result
+    try:
+        # 1. 기본 키워드 필터링
+        blocked_keywords = get_block_keywords()
+        if any(keyword in prompt.lower() for keyword in blocked_keywords):
+            return {
+                "is_blocked": True,
+                "reason": "차단된 키워드가 포함되어 있습니다",
+                "detection_method": "keyword_filter",
+                "risk_score": 1.0,
+                "masked_prompt": mask_prompt(prompt),
+                "processing_time": time.time() - start_time
+            }
+        
+        # 2. Rebuff SDK를 통한 프롬프트 인젝션 탐지
+        try:
+            from app.rebuff_sdk_client import get_rebuff_client
+            rebuff_client = await get_rebuff_client()
+            rebuff_result = await rebuff_client.detect_injection(prompt)
+            
+            if rebuff_result.is_injection:
+                return {
+                    "is_blocked": True,
+                    "reason": f"프롬프트 인젝션 탐지: {rebuff_result.reason}",
+                    "detection_method": "rebuff_sdk",
+                    "risk_score": rebuff_result.heuristic_score,
+                    "masked_prompt": mask_prompt(prompt),
+                    "processing_time": time.time() - start_time
+                }
+        except Exception as e:
+            logger.warning(f"Rebuff SDK 탐지 실패: {e}")
+        
+        # 3. 벡터 유사도 검사
+        try:
+            from app.embedding_filter import get_embedding_filter
+            embedding_filter = await get_embedding_filter()
+            similarity_result = await embedding_filter.check_similarity(prompt)
+            
+            if similarity_result["is_similar"]:
+                return {
+                    "is_blocked": True,
+                    "reason": f"유사한 차단된 프롬프트 탐지: {similarity_result['reason']}",
+                    "detection_method": "embedding_filter",
+                    "risk_score": similarity_result["similarity_score"],
+                    "masked_prompt": mask_prompt(prompt),
+                    "processing_time": time.time() - start_time
+                }
+        except Exception as e:
+            logger.warning(f"벡터 유사도 검사 실패: {e}")
+        
+        # 4. ML 분류기 검사
+        try:
+            from app.ml_classifier import get_ml_classifier
+            ml_classifier = await get_ml_classifier()
+            classification_result = await ml_classifier.classify_prompt(prompt)
+            
+            if classification_result["is_malicious"]:
+                return {
+                    "is_blocked": True,
+                    "reason": f"악성 프롬프트로 분류됨: {classification_result['reason']}",
+                    "detection_method": "ml_classifier",
+                    "risk_score": classification_result["confidence"],
+                    "masked_prompt": mask_prompt(prompt),
+                    "processing_time": time.time() - start_time
+                }
+        except Exception as e:
+            logger.warning(f"ML 분류기 검사 실패: {e}")
+        
+        # 5. 모든 검사를 통과한 경우
+        return {
+            "is_blocked": False,
+            "reason": "프롬프트가 안전합니다",
+            "detection_method": "multi_layer",
+            "risk_score": 0.0,
+            "masked_prompt": prompt,
+            "processing_time": time.time() - start_time
+        }
+        
+    except Exception as e:
+        logger.error(f"프롬프트 평가 중 오류 발생: {e}")
+        return {
+            "is_blocked": False,
+            "reason": "평가 중 오류가 발생했습니다",
+            "detection_method": "error",
+            "risk_score": 0.0,
+            "masked_prompt": prompt,
+            "processing_time": time.time() - start_time,
+            "error": str(e)
+        }
