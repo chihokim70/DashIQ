@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: promptgate_frontend
     ports:
-      - "3001:8080"
+      - "3001:3000"
     environment:
       - NODE_ENV=production
     depends_on:

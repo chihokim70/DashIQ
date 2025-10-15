@@ -15,5 +15,5 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy_anon_key
 
 RUN npm run build
 
-EXPOSE 8080
+EXPOSE 3000
 CMD ["npm", "run", "start"]
