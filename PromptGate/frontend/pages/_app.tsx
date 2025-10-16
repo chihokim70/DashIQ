@@ -15,7 +15,7 @@ export default function App(props: AppProps<{ initialSession: Session }>) {
   return (
     <>
       <Head>
-        <title>Page title</title>
+        <title>AiGov AI Assistant</title>
         <meta
           name="viewport"
           content="minimum-scale=1, initial-scale=1, width=device-width"
