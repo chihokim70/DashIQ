@@ -17,7 +17,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ sidebarOpen, onToggleSidebar }: ChatHeaderProps) {
   return (
-    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6">
+    <header className="h-16 border-b border-gray-200 bg-gray-50 flex items-center justify-between px-6">
       {/* Logo/Title */}
       <div className="flex items-center gap-3">
         {/* Sidebar Toggle */}

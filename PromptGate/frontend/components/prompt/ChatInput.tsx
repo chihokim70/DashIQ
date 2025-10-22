@@ -36,20 +36,22 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
 
   if (centered) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4">
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="무엇이든 물어보세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-            className="min-h-[120px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            disabled={disabled}
-          />
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2">
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-4">
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="무엇이든 물어보세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
+              className="min-h-[100px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+              disabled={disabled}
+            />
+          </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <div className="flex items-center gap-3">
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[120px] h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -63,7 +65,11 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
                 <Paperclip className="w-4 h-4" />
               </Button>
             </div>
-            <Button onClick={handleSend} disabled={disabled || !message.trim()}>
+            <Button 
+              onClick={handleSend} 
+              disabled={disabled || !message.trim()}
+              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 h-9"
+            >
               <Send className="w-4 h-4 mr-2" />
               전송
             </Button>
@@ -108,7 +114,12 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
               </div>
             </div>
           </div>
-          <Button onClick={handleSend} disabled={disabled || !message.trim()} size="lg">
+          <Button 
+            onClick={handleSend} 
+            disabled={disabled || !message.trim()} 
+            size="lg"
+            className="bg-gray-700 hover:bg-gray-800 text-white"
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>

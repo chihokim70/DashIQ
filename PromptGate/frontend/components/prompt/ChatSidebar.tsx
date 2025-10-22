@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, Plus, FolderOpen, Settings, User, ChevronDown, ChevronRight, FolderPlus } from 'lucide-react';
+import { MessageSquare, Plus, FolderOpen, Settings, User, ChevronDown, ChevronRight, FolderPlus, BarChart3, Home } from 'lucide-react';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '../ui/utils';
@@ -28,7 +28,12 @@ interface Project {
   expanded?: boolean;
 }
 
-export function ChatSidebar() {
+interface ChatSidebarProps {
+  onNavigate?: (page: string) => void;
+  currentPage?: string;
+}
+
+export function ChatSidebar({ onNavigate, currentPage = 'chat' }: ChatSidebarProps) {
   const [projects, setProjects] = useState<Project[]>([
     {
       id: '1',
@@ -109,14 +114,41 @@ export function ChatSidebar() {
     setNewProjectDialogOpen(false);
   };
 
+  const navItems = [
+    { id: 'chat', label: '채팅', icon: MessageSquare },
+    { id: 'dashboard', label: '대시보드', icon: BarChart3 },
+    { id: 'settings', label: '설정', icon: Settings },
+  ];
+
   return (
-    <div className="flex flex-col h-full bg-[#f7f7f8] border-r border-gray-200">
+    <div className="flex flex-col h-full" style={{backgroundColor: '#111827', color: 'white'}}>
+      {/* Navigation Menu */}
+      <div className="p-4 border-b border-gray-700">
+        <div className="space-y-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate?.(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+                currentPage === item.id 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Action Buttons */}
-      <div className="p-4 border-b border-gray-200 space-y-2">
+      <div className="p-4 border-b border-gray-700 space-y-2">
         <Button 
           className="w-full justify-start gap-2" 
           variant="default"
           onClick={handleNewChat}
+          style={{backgroundColor: 'white', color: '#111827'}}
         >
           <Plus className="w-4 h-4" />
           새 채팅
@@ -124,7 +156,7 @@ export function ChatSidebar() {
 
         <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full justify-start gap-2" variant="outline">
+            <Button className="w-full justify-start gap-2" variant="outline" style={{backgroundColor: 'white', color: '#111827', borderColor: '#6b7280'}}>
               <FolderPlus className="w-4 h-4" />
               새 프로젝트
             </Button>
@@ -174,10 +206,13 @@ export function ChatSidebar() {
           {projects.map((project) => (
             <div key={project.id} className="mb-2">
               {/* Project Header */}
-              <button
-                onClick={() => toggleProject(project.id)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-              >
+                     <button
+                       onClick={() => toggleProject(project.id)}
+                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+                       style={{color: 'white'}}
+                       onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#374151'}
+                       onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
+                     >
                 {project.expanded ? (
                   <ChevronDown className="w-4 h-4" />
                 ) : (
@@ -191,20 +226,29 @@ export function ChatSidebar() {
               {project.expanded && (
                 <div className="ml-6 mt-1 space-y-1">
                   {project.chats.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => setActiveChat(chat.id)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left",
-                        activeChat === chat.id
-                          ? "bg-white shadow-sm"
-                          : "hover:bg-gray-200"
-                      )}
-                    >
+                           <button
+                             key={chat.id}
+                             onClick={() => setActiveChat(chat.id)}
+                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left"
+                             style={{
+                               color: 'white',
+                               backgroundColor: activeChat === chat.id ? '#374151' : 'transparent'
+                             }}
+                             onMouseEnter={(e) => {
+                               if (activeChat !== chat.id) {
+                                 (e.target as HTMLElement).style.backgroundColor = '#374151';
+                               }
+                             }}
+                             onMouseLeave={(e) => {
+                               if (activeChat !== chat.id) {
+                                 (e.target as HTMLElement).style.backgroundColor = 'transparent';
+                               }
+                             }}
+                           >
                       <MessageSquare className="w-4 h-4 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="truncate">{chat.title}</div>
-                        <div className="text-xs text-gray-500">{chat.timestamp}</div>
+                        <div className="text-xs" style={{color: '#9ca3af'}}>{chat.timestamp}</div>
                       </div>
                     </button>
                   ))}
