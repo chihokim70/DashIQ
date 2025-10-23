@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Paperclip } from 'lucide-react';
+import { Send, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import {
@@ -36,39 +36,38 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
 
   if (centered) {
     return (
-      <div className="w-full max-w-4xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="w-full max-w-3xl mx-auto px-4 py-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-4">
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="무엇이든 물어보세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-              className="min-h-[100px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-              disabled={disabled}
-            />
-          </div>
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-3">
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-[120px] h-9">
+                <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gpt-4">GPT-4</SelectItem>
-                  <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                  <SelectItem value="claude-3">Claude 3</SelectItem>
-                  <SelectItem value="claude-2">Claude 2</SelectItem>
+                  <SelectItem value="gpt-3.5">GPT-3.5</SelectItem>
+                  <SelectItem value="claude">Claude</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="ghost" size="icon" disabled={disabled}>
-                <Paperclip className="w-4 h-4" />
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="무엇을 도와 드릴까요?"
+              className="min-h-[120px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base bg-transparent placeholder:text-gray-400"
+              disabled={disabled}
+            />
+          </div>
+          <div className="flex justify-end p-4 pt-0">
             <Button 
               onClick={handleSend} 
               disabled={disabled || !message.trim()}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 h-9"
+              className="bg-green-600 hover:bg-green-700"
             >
               <Send className="w-4 h-4 mr-2" />
               전송
@@ -83,47 +82,41 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
   }
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 bg-gray-50 rounded-lg border border-gray-200">
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-              className="border-0 bg-transparent resize-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[60px]"
-              disabled={disabled}
-            />
-            <div className="flex items-center justify-between px-3 pb-2">
-              <div className="flex items-center gap-2">
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger className="w-[160px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4">GPT-4</SelectItem>
-                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                    <SelectItem value="claude-3">Claude 3</SelectItem>
-                    <SelectItem value="claude-2">Claude 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={disabled}>
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <Button 
-            onClick={handleSend} 
-            disabled={disabled || !message.trim()} 
-            size="lg"
-            className="bg-gray-700 hover:bg-gray-800 text-white"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+    <div className="flex items-end gap-3 p-4 bg-white border-t border-gray-200">
+      <div className="flex items-center gap-3">
+        <Select value={selectedModel} onValueChange={setSelectedModel}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="gpt-4">GPT-4</SelectItem>
+            <SelectItem value="gpt-3.5">GPT-3.5</SelectItem>
+            <SelectItem value="claude">Claude</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Plus className="w-4 h-4" />
+        </Button>
+      </div>
+      <div className="flex-1">
+        <div className="bg-white rounded-xl border border-gray-200 p-3">
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="무엇을 도와 드릴까요?"
+            className="min-h-[60px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-gray-400"
+            disabled={disabled}
+          />
         </div>
       </div>
+      <Button 
+        onClick={handleSend} 
+        disabled={disabled || !message.trim()}
+        className="bg-green-600 hover:bg-green-700"
+      >
+        <Send className="w-4 h-4" />
+      </Button>
     </div>
   );
 }

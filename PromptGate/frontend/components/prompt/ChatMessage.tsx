@@ -16,17 +16,18 @@ export function ChatMessage({ role, content, timestamp, filtered, model }: ChatM
   const isSystem = role === 'system';
 
   return (
-    <div
-      className={cn(
-        "flex gap-4 px-6 py-6",
-        isUser ? "bg-white" : "bg-gray-50"
-      )}
-    >
+    <div className="flex gap-4 p-4">
       {/* Avatar */}
       <div className="flex-shrink-0">
         <Avatar className="w-8 h-8">
-          <AvatarFallback className={isUser ? "bg-blue-100" : "bg-purple-100"}>
-            {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+          <AvatarFallback className={cn(
+            isUser ? "bg-green-100 text-green-600" : 
+            isSystem ? "bg-red-100 text-red-600" : 
+            "bg-gray-100 text-gray-600"
+          )}>
+            {isUser ? <User className="w-4 h-4" /> : 
+             isSystem ? <AlertTriangle className="w-4 h-4" /> : 
+             <Bot className="w-4 h-4" />}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -35,14 +36,19 @@ export function ChatMessage({ role, content, timestamp, filtered, model }: ChatM
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
           <span className={cn(
-            isUser ? "text-blue-900" : "text-purple-900"
+            "font-medium text-sm",
+            isUser ? "text-gray-900" : 
+            isSystem ? "text-red-600" : 
+            "text-gray-700"
           )}>
-            {isUser ? '사용자' : 'AI 어시스턴트'}
+            {isUser ? '사용자' : 
+             isSystem ? '시스템' : 
+             'AI 어시스턴트'}
           </span>
           {timestamp && (
             <span className="text-xs text-gray-500">{timestamp}</span>
           )}
-          {model && (
+          {model && !isUser && (
             <Badge variant="outline" className="text-xs">
               {model}
             </Badge>
@@ -50,11 +56,11 @@ export function ChatMessage({ role, content, timestamp, filtered, model }: ChatM
           {filtered && (
             <Badge variant="secondary" className="text-xs gap-1">
               <Shield className="w-3 h-3" />
-              보안 필터링됨
+              필터링됨
             </Badge>
           )}
         </div>
-        <div className="text-gray-900 whitespace-pre-wrap">{content}</div>
+        <div className="text-gray-900 whitespace-pre-wrap leading-relaxed">{content}</div>
       </div>
     </div>
   );

@@ -20,35 +20,35 @@ export function WelcomeScreen() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center px-4 py-12">
+    <div className="flex flex-col items-center justify-center px-4 py-12 max-w-4xl mx-auto">
       <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl mb-6">
           <div className="w-8 h-8 text-white font-bold text-xl flex items-center justify-center">
             AI
           </div>
         </div>
-        <h1 className="text-3xl mb-3 text-gray-900">
-          Enterprise LLM Proxy에 오신 것을 환영합니다
+        <h1 className="text-4xl font-semibold mb-4 text-gray-900">
+          AI 업무시스템에 오신 것을 환영합니다
         </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           보안이 강화된 기업용 AI 어시스턴트로 안전하게 업무 효율성을 높이세요
         </p>
       </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full mb-16">
-               {features.map((feature, index) => (
-                 <div
-                   key={index}
-                   className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow"
-                 >
-                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
-                     <feature.icon className="w-6 h-6 text-blue-500" />
-                   </div>
-                   <h3 className="mb-2 text-gray-900 font-medium">{feature.title}</h3>
-                   <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
-                 </div>
-               ))}
-             </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+        {features.map((feature, index) => (
+          <div
+            key={index}
+            className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+              <feature.icon className="w-6 h-6 text-gray-600" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{feature.title}</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

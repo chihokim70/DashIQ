@@ -59,7 +59,7 @@ export default async function handler(
     console.log(`[Chat API] 프롬프트 필터링 시작: ${message.substring(0, 50)}...`);
     
     try {
-      const filterResponse = await fetch('http://localhost:8001/prompt/check', {
+      const filterResponse = await fetch('http://promptgate_filter-service:8000/prompt/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

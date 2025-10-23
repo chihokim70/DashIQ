@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { MessageSquare, Plus, FolderOpen, Settings, User, ChevronDown, ChevronRight, FolderPlus, BarChart3, Home } from 'lucide-react';
+import { MessageSquare, Plus, FolderOpen, ChevronDown, ChevronRight, FolderPlus, MoreHorizontal, Share2, Edit3, Star, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
-import { cn } from '../ui/utils';
 import {
   Dialog,
   DialogContent,
@@ -33,68 +32,38 @@ interface ChatSidebarProps {
   currentPage?: string;
 }
 
-export function ChatSidebar({ onNavigate, currentPage = 'chat' }: ChatSidebarProps) {
+export function ChatSidebar({ onNavigate, currentPage }: ChatSidebarProps) {
   const [projects, setProjects] = useState<Project[]>([
     {
       id: '1',
-      name: 'AI 개발 프로젝트',
+      name: '프로젝트 1',
       expanded: true,
       chats: [
-        { id: '1', title: '데이터 전처리 방법', timestamp: '2025-10-20 10:30' },
-        { id: '2', title: '모델 학습 최적화', timestamp: '2025-10-19 15:20' },
-        { id: '3', title: 'API 연동 가이드', timestamp: '2025-10-18 09:15' },
-      ],
+        { id: '1-1', title: 'React 컴포넌트 설계', timestamp: '2024-01-15' },
+        { id: '1-2', title: 'API 연동 방법', timestamp: '2024-01-14' },
+      ]
     },
     {
       id: '2',
-      name: '보안 컴플라이언스',
+      name: '프로젝트 2',
       expanded: false,
       chats: [
-        { id: '4', title: '보안 정책 검토', timestamp: '2025-10-17 14:00' },
-        { id: '5', title: '데이터 암호화', timestamp: '2025-10-16 11:45' },
-      ],
-    },
+        { id: '2-1', title: '데이터베이스 설계', timestamp: '2024-01-13' },
+      ]
+    }
   ]);
 
-  const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [sharedChats] = useState<Chat[]>([
+    { id: 'shared-1', title: '공유된 채팅 1', timestamp: '2024-01-12' },
+    { id: 'shared-2', title: '공유된 채팅 2', timestamp: '2024-01-11' },
+  ]);
+
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-
-  const toggleProject = (projectId: string) => {
-    setProjects(projects.map(p => 
-      p.id === projectId ? { ...p, expanded: !p.expanded } : p
-    ));
-  };
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const handleNewChat = () => {
-    if (projects.length === 0) {
-      alert('먼저 프로젝트를 생성해주세요.');
-      return;
-    }
-    
-    const timestamp = new Date().toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      title: '새 채팅',
-      timestamp,
-    };
-
-    // Add to first project or first expanded project
-    const targetProject = projects.find(p => p.expanded) || projects[0];
-    
-    setProjects(projects.map(p => 
-      p.id === targetProject.id 
-        ? { ...p, chats: [newChat, ...p.chats], expanded: true }
-        : p
-    ));
-    setActiveChat(newChat.id);
+    console.log('새 채팅 생성');
   };
 
   const handleCreateProject = () => {
@@ -105,96 +74,99 @@ export function ChatSidebar({ onNavigate, currentPage = 'chat' }: ChatSidebarPro
     const newProject: Project = {
       id: Date.now().toString(),
       name: newProjectName,
-      chats: [],
       expanded: true,
+      chats: []
     };
 
-    setProjects([newProject, ...projects]);
+    setProjects([...projects, newProject]);
     setNewProjectName('');
     setNewProjectDialogOpen(false);
   };
 
-  const navItems = [
-    { id: 'chat', label: '채팅', icon: MessageSquare },
-    { id: 'dashboard', label: '대시보드', icon: BarChart3 },
-    { id: 'settings', label: '설정', icon: Settings },
-  ];
+  const toggleProject = (projectId: string) => {
+    setProjects(projects.map(project => 
+      project.id === projectId 
+        ? { ...project, expanded: !project.expanded }
+        : project
+    ));
+  };
 
   return (
-    <div className="flex flex-col h-full" style={{backgroundColor: '#111827', color: 'white'}}>
+    <div className="flex flex-col h-full bg-gray-900 text-white">
       {/* Navigation Menu */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-3 border-b border-gray-700">
         <div className="space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate?.(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
-                currentPage === item.id 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          <div 
+            className={`px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
+              currentPage === 'chat' ? "bg-gray-700" : "hover:bg-gray-800"
+            }`}
+            onClick={() => onNavigate?.('chat')}
+          >
+            채팅
+          </div>
+          <div 
+            className={`px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
+              currentPage === 'project' ? "bg-gray-700" : "hover:bg-gray-800"
+            }`}
+            onClick={() => onNavigate?.('project')}
+          >
+            프로젝트
+          </div>
+          <div 
+            className={`px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
+              currentPage === 'apps' ? "bg-gray-700" : "hover:bg-gray-800"
+            }`}
+            onClick={() => onNavigate?.('apps')}
+          >
+            Apps
+          </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="p-4 border-b border-gray-700 space-y-2">
-        <Button 
-          className="w-full justify-start gap-2" 
-          variant="default"
+      <div className="p-3 border-b border-gray-700">
+        <Button
+          className="w-full justify-start gap-2 bg-transparent hover:bg-gray-800 text-white border border-gray-600"
           onClick={handleNewChat}
-          style={{backgroundColor: 'white', color: '#111827'}}
         >
           <Plus className="w-4 h-4" />
           새 채팅
         </Button>
-
         <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full justify-start gap-2" variant="outline" style={{backgroundColor: 'white', color: '#111827', borderColor: '#6b7280'}}>
+            <Button className="w-full justify-start gap-2 bg-transparent hover:bg-gray-800 text-white border border-gray-600 mt-2">
               <FolderPlus className="w-4 h-4" />
               새 프로젝트
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-white text-gray-900">
             <DialogHeader>
-              <DialogTitle>새 프로젝트 만들기</DialogTitle>
+              <DialogTitle>새 프로젝트 생성</DialogTitle>
               <DialogDescription>
-                새로운 프로젝트를 생성하여 채팅을 구조화하세요.
+                프로젝트 이름을 입력해주세요.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="project-name">프로젝트 이름</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="project-name" className="text-right">
+                  프로젝트명
+                </Label>
                 <Input
                   id="project-name"
-                  placeholder="예: AI 모델 개발"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateProject();
-                    }
-                  }}
+                  className="col-span-3"
+                  placeholder="프로젝트 이름을 입력하세요"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setNewProjectDialogOpen(false);
-                  setNewProjectName('');
-                }}
-              >
+              <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>
                 취소
               </Button>
-              <Button onClick={handleCreateProject}>생성</Button>
+              <Button onClick={handleCreateProject}>
+                생성
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -203,59 +175,144 @@ export function ChatSidebar({ onNavigate, currentPage = 'chat' }: ChatSidebarPro
       {/* Chat History */}
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {projects.map((project) => (
-            <div key={project.id} className="mb-2">
-              {/* Project Header */}
-                     <button
-                       onClick={() => toggleProject(project.id)}
-                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
-                       style={{color: 'white'}}
-                       onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#374151'}
-                       onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
-                     >
-                {project.expanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-                <FolderOpen className="w-4 h-4" />
-                <span className="flex-1 text-left">{project.name}</span>
-              </button>
-
-              {/* Project Chats */}
-              {project.expanded && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {project.chats.map((chat) => (
-                           <button
-                             key={chat.id}
-                             onClick={() => setActiveChat(chat.id)}
-                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left"
-                             style={{
-                               color: 'white',
-                               backgroundColor: activeChat === chat.id ? '#374151' : 'transparent'
-                             }}
-                             onMouseEnter={(e) => {
-                               if (activeChat !== chat.id) {
-                                 (e.target as HTMLElement).style.backgroundColor = '#374151';
-                               }
-                             }}
-                             onMouseLeave={(e) => {
-                               if (activeChat !== chat.id) {
-                                 (e.target as HTMLElement).style.backgroundColor = 'transparent';
-                               }
-                             }}
-                           >
-                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate">{chat.title}</div>
-                        <div className="text-xs" style={{color: '#9ca3af'}}>{chat.timestamp}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* 채팅 히스토리 그룹 */}
+          <div className="mb-4">
+            <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+              채팅 히스토리
             </div>
-          ))}
+            <div className="space-y-1">
+              {projects.map((project) => (
+                <div key={project.id} className="mb-2">
+                  {/* Project Header */}
+                  <button
+                    onClick={() => toggleProject(project.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-gray-800 text-sm"
+                  >
+                    {project.expanded ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                    <FolderOpen className="w-4 h-4" />
+                    <span className="flex-1 text-left">{project.name}</span>
+                  </button>
+                  
+                  {/* Project Chats */}
+                  {project.expanded && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {project.chats.map((chat) => (
+                        <div
+                          key={chat.id}
+                          className="relative group"
+                          onMouseEnter={() => setHoveredItem(chat.id)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                        >
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left hover:bg-gray-800 text-sm"
+                          >
+                            <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{chat.title}</div>
+                              <div className="text-xs text-gray-400">{chat.timestamp}</div>
+                            </div>
+                          </button>
+                          
+                          {/* Action Menu */}
+                          {hoveredItem === chat.id && (
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                              >
+                                <MoreHorizontal className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 프로젝트 히스토리 그룹 */}
+          <div className="mb-4">
+            <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+              프로젝트 히스토리
+            </div>
+            <div className="space-y-1">
+              {projects.map((project) => (
+                <div
+                  key={`project-${project.id}`}
+                  className="relative group"
+                  onMouseEnter={() => setHoveredItem(`project-${project.id}`)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                >
+                  <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left hover:bg-gray-800 text-sm">
+                    <FolderOpen className="w-4 h-4" />
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">{project.name}</div>
+                      <div className="text-xs text-gray-400">{project.chats.length}개 채팅</div>
+                    </div>
+                  </button>
+                  
+                  {/* Action Menu */}
+                  {hoveredItem === `project-${project.id}` && (
+                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                      >
+                        <MoreHorizontal className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 공유 채팅 그룹 */}
+          <div className="mb-4">
+            <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+              공유 채팅
+            </div>
+            <div className="space-y-1">
+              {sharedChats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className="relative group"
+                  onMouseEnter={() => setHoveredItem(chat.id)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                >
+                  <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left hover:bg-gray-800 text-sm">
+                    <Share2 className="w-4 h-4" />
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">{chat.title}</div>
+                      <div className="text-xs text-gray-400">{chat.timestamp}</div>
+                    </div>
+                  </button>
+                  
+                  {/* Action Menu */}
+                  {hoveredItem === chat.id && (
+                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                      >
+                        <MoreHorizontal className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </ScrollArea>
     </div>

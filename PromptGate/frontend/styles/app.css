@@ -1,3 +1,7 @@
+/* AiGov Design Tokens */
+@import './tokens-light.css';
+@import './tokens-dark.css';
+
 .sr-only {
   position: absolute;
   width: 1px;
