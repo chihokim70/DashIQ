@@ -28,52 +28,98 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 대시보드 KPI 데이터 엔드포인트
+// 날짜 필터링 헬퍼 함수
+function getDateFilter(year, month, week) {
+  const currentDate = new Date();
+  let startDate, endDate;
+
+  if (year && year !== 'all') {
+    const targetYear = parseInt(year);
+    
+    if (month && month !== 'all') {
+      const targetMonth = parseInt(month) - 1; // JavaScript month is 0-indexed
+      
+      if (week && week !== 'all') {
+        // 특정 주
+        const targetWeek = parseInt(week);
+        startDate = new Date(targetYear, targetMonth, (targetWeek - 1) * 7 + 1);
+        endDate = new Date(targetYear, targetMonth, targetWeek * 7);
+      } else {
+        // 특정 년월
+        startDate = new Date(targetYear, targetMonth, 1);
+        endDate = new Date(targetYear, targetMonth + 1, 0);
+      }
+    } else {
+      // 특정 년도 전체
+      startDate = new Date(targetYear, 0, 1);
+      endDate = new Date(targetYear, 11, 31);
+    }
+  } else {
+    // 기본값: 이번 달
+    startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  }
+
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString()
+  };
+}
+
+// 대시보드 KPI 데이터 엔드포인트 (날짜 필터링 지원)
 app.get('/api/dashboard/kpi', async (req, res) => {
   try {
     const tenantId = 1; // 기본 테넌트
+    const { year, month, week } = req.query;
+    
+    // 날짜 필터 생성
+    const { startDate, endDate } = getDateFilter(year, month, week);
 
-    // 전체 AI 요청 수 (이번 달)
+    // 전체 AI 요청 수 (필터링된 기간)
     const totalRequestsQuery = `
       SELECT COALESCE(SUM(total_prompts), 0) as total_requests,
              COALESCE(SUM(total_tokens), 0) as total_tokens,
              COALESCE(SUM(total_cost), 0) as total_cost
       FROM prompt_sessions 
       WHERE tenant_id = $1 
-      AND created_at >= DATE_TRUNC('month', NOW())
+      AND created_at >= $2::timestamp
+      AND created_at <= $3::timestamp
     `;
-    const totalRequestsResult = await pool.query(totalRequestsQuery, [tenantId]);
+    const totalRequestsResult = await pool.query(totalRequestsQuery, [tenantId, startDate, endDate]);
     const totalRequests = totalRequestsResult.rows[0].total_requests || 0;
 
-    // 정책 위반 수 (이번 달)
+    // 정책 위반 수 (필터링된 기간)
     const violationsQuery = `
       SELECT COUNT(*) as violation_count
       FROM decision_logs 
       WHERE tenant_id = $1 
       AND decision = 'deny'
-      AND ts >= DATE_TRUNC('month', NOW())
+      AND ts >= $2::timestamp
+      AND ts <= $3::timestamp
     `;
-    const violationsResult = await pool.query(violationsQuery, [tenantId]);
+    const violationsResult = await pool.query(violationsQuery, [tenantId, startDate, endDate]);
     const violations = violationsResult.rows[0].violation_count || 0;
 
-    // Shadow AI 탐지 수 (이번 달)
+    // Shadow AI 탐지 수 (필터링된 기간)
     const shadowAIQuery = `
       SELECT COUNT(*) as shadow_count
       FROM shadow_events 
       WHERE tenant_id = $1 
-      AND ts >= DATE_TRUNC('month', NOW())
+      AND ts >= $2::timestamp
+      AND ts <= $3::timestamp
     `;
-    const shadowAIResult = await pool.query(shadowAIQuery, [tenantId]);
+    const shadowAIResult = await pool.query(shadowAIQuery, [tenantId, startDate, endDate]);
     const shadowAI = shadowAIResult.rows[0].shadow_count || 0;
 
-    // AI 서비스 활성 사용자 수 (이번 달)
+    // AI 서비스 활성 사용자 수 (필터링된 기간)
     const activeUsersQuery = `
       SELECT COUNT(DISTINCT user_id) as active_users
       FROM prompt_sessions 
       WHERE tenant_id = $1 
-      AND created_at >= DATE_TRUNC('month', NOW())
+      AND created_at >= $2::timestamp
+      AND created_at <= $3::timestamp
     `;
-    const activeUsersResult = await pool.query(activeUsersQuery, [tenantId]);
+    const activeUsersResult = await pool.query(activeUsersQuery, [tenantId, startDate, endDate]);
     const activeUsers = activeUsersResult.rows[0].active_users || 0;
 
     // KPI 데이터 포맷팅
@@ -103,6 +149,12 @@ app.get('/api/dashboard/kpi', async (req, res) => {
     res.json({
       success: true,
       data: kpiData,
+      filter: {
+        year: year || 'current',
+        month: month || 'current', 
+        week: week || 'all',
+        period: { startDate, endDate }
+      },
       timestamp: new Date().toISOString()
     });
 
@@ -283,6 +335,154 @@ app.get('/api/dashboard/shadow-ai-heatmap', async (req, res) => {
   }
 });
 
+// AI Service Users 트렌드 (일별 활성 사용자 수)
+app.get('/api/dashboard/users-trend', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const { year, month, week } = req.query;
+    const { startDate, endDate } = getDateFilter(year, month, week);
+
+    const query = `
+      WITH daily_users AS (
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(DISTINCT user_id) as active_users
+        FROM prompt_sessions 
+        WHERE tenant_id = $1 
+        AND created_at >= $2::timestamp
+        AND created_at <= $3::timestamp
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at)
+      )
+      SELECT 
+        to_char(date, 'Mon DD') as date_label,
+        active_users
+      FROM daily_users
+      ORDER BY date
+    `;
+
+    const result = await pool.query(query, [tenantId, startDate, endDate]);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      filter: {
+        year: year || 'current',
+        month: month || 'current',
+        week: week || 'all',
+        period: { startDate, endDate }
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('사용자 트렌드 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users trend data'
+    });
+  }
+});
+
+// Model-wise User Distribution (모델별 사용자 분포)
+app.get('/api/dashboard/model-distribution', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const { year, month, week } = req.query;
+    const { startDate, endDate } = getDateFilter(year, month, week);
+
+    const query = `
+      SELECT 
+        model_name,
+        COUNT(DISTINCT user_id) as user_count,
+        COUNT(*) as session_count,
+        SUM(total_prompts) as total_requests,
+        ROUND(SUM(total_cost), 2) as total_cost
+      FROM prompt_sessions 
+      WHERE tenant_id = $1 
+      AND created_at >= $2::timestamp
+      AND created_at <= $3::timestamp
+      AND model_name IS NOT NULL
+      GROUP BY model_name
+      ORDER BY user_count DESC
+    `;
+
+    const result = await pool.query(query, [tenantId, startDate, endDate]);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      filter: {
+        year: year || 'current',
+        month: month || 'current',
+        week: week || 'all',
+        period: { startDate, endDate }
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('모델 분포 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch model distribution data'
+    });
+  }
+});
+
+// Department Distribution (부서별 분포)
+app.get('/api/dashboard/department-distribution', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const { year, month, week } = req.query;
+    const { startDate, endDate } = getDateFilter(year, month, week);
+
+    const query = `
+      SELECT 
+        u.department,
+        COUNT(DISTINCT u.id) as total_users,
+        COUNT(DISTINCT ps.user_id) as active_users,
+        COALESCE(SUM(ps.total_prompts), 0) as total_requests,
+        COALESCE(SUM(ps.total_tokens), 0) as total_tokens,
+        COALESCE(ROUND(SUM(ps.total_cost), 2), 0) as total_cost,
+        COUNT(DISTINCT CASE WHEN dl.decision = 'deny' THEN dl.user_id END) as violation_users,
+        COUNT(CASE WHEN dl.decision = 'deny' THEN 1 END) as violation_count
+      FROM users u
+      LEFT JOIN prompt_sessions ps ON u.id = ps.user_id 
+        AND ps.created_at >= $2::timestamp
+        AND ps.created_at <= $3::timestamp
+      LEFT JOIN decision_logs dl ON u.id = dl.user_id 
+        AND dl.ts >= $2::timestamp
+        AND dl.ts <= $3::timestamp
+      WHERE u.tenant_id = $1 
+      AND u.department IS NOT NULL
+      GROUP BY u.department
+      ORDER BY active_users DESC, total_requests DESC
+    `;
+
+    const result = await pool.query(query, [tenantId, startDate, endDate]);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      filter: {
+        year: year || 'current',
+        month: month || 'current',
+        week: week || 'all',
+        period: { startDate, endDate }
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('부서 분포 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch department distribution data'
+    });
+  }
+});
+
 // 일별 사용량 트렌드
 app.get('/api/dashboard/usage-trend', async (req, res) => {
   try {
@@ -339,6 +539,100 @@ app.get('/api/dashboard/usage-trend', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch usage trend data'
+    });
+  }
+});
+
+// AI Service Users 상세 통계 (Total Users, AI Service Users, Adoption Rate, Growth)
+app.get('/api/dashboard/user-statistics', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const { year, month, week } = req.query;
+    const { startDate, endDate } = getDateFilter(year, month, week);
+
+    // 전체 사용자 수
+    const totalUsersQuery = `
+      SELECT COUNT(*) as total_users
+      FROM users 
+      WHERE tenant_id = $1 
+      AND created_at <= $2::timestamp
+    `;
+    const totalUsersResult = await pool.query(totalUsersQuery, [tenantId, endDate]);
+    const totalUsers = parseInt(totalUsersResult.rows[0].total_users) || 0;
+
+    // AI 서비스 활성 사용자 수 (필터링 기간 내)
+    const aiServiceUsersQuery = `
+      SELECT COUNT(DISTINCT user_id) as ai_service_users
+      FROM prompt_sessions 
+      WHERE tenant_id = $1 
+      AND created_at >= $2::timestamp
+      AND created_at <= $3::timestamp
+    `;
+    const aiServiceUsersResult = await pool.query(aiServiceUsersQuery, [tenantId, startDate, endDate]);
+    const aiServiceUsers = parseInt(aiServiceUsersResult.rows[0].ai_service_users) || 0;
+
+    // 지난 기간 AI 서비스 사용자 수 (성장률 계산용)
+    const periodLength = new Date(endDate) - new Date(startDate);
+    const previousStartDate = new Date(new Date(startDate) - periodLength).toISOString();
+    const previousEndDate = startDate;
+
+    const previousAiUsersQuery = `
+      SELECT COUNT(DISTINCT user_id) as previous_ai_users
+      FROM prompt_sessions 
+      WHERE tenant_id = $1 
+      AND created_at >= $2::timestamp
+      AND created_at <= $3::timestamp
+    `;
+    const previousAiUsersResult = await pool.query(previousAiUsersQuery, [tenantId, previousStartDate, previousEndDate]);
+    const previousAiUsers = parseInt(previousAiUsersResult.rows[0].previous_ai_users) || 0;
+
+    // 채택률 계산
+    const adoptionRate = totalUsers > 0 ? ((aiServiceUsers / totalUsers) * 100) : 0;
+
+    // 성장률 계산
+    const growthRate = previousAiUsers > 0 
+      ? (((aiServiceUsers - previousAiUsers) / previousAiUsers) * 100) 
+      : (aiServiceUsers > 0 ? 100 : 0);
+
+    const statistics = {
+      totalUsers: {
+        value: totalUsers.toLocaleString(),
+        rawValue: totalUsers
+      },
+      aiServiceUsers: {
+        value: aiServiceUsers.toLocaleString(), 
+        rawValue: aiServiceUsers
+      },
+      adoptionRate: {
+        value: `${adoptionRate.toFixed(1)}%`,
+        rawValue: adoptionRate,
+        isPositive: adoptionRate > 30
+      },
+      growth: {
+        value: `${growthRate >= 0 ? '↑' : '↓'} ${Math.abs(growthRate).toFixed(1)}%`,
+        rawValue: growthRate,
+        isPositive: growthRate > 0
+      }
+    };
+
+    res.json({
+      success: true,
+      data: statistics,
+      filter: {
+        year: year || 'current',
+        month: month || 'current',
+        week: week || 'all',
+        period: { startDate, endDate }
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('사용자 통계 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user statistics data',
+      message: error.message
     });
   }
 });
