@@ -13,16 +13,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from "@dnd-kit/utilities";
 import { Rnd } from "react-rnd";
 
-const dailyUsageData = [
-  { date: "Oct 24", requests: 1200, violations: 45 },
-  { date: "Oct 25", requests: 1850, violations: 32 },
-  { date: "Oct 26", requests: 2100, violations: 28 },
-  { date: "Oct 27", requests: 1950, violations: 51 },
-  { date: "Oct 28", requests: 2400, violations: 38 },
-  { date: "Oct 29", requests: 2800, violations: 42 },
-  { date: "Oct 30", requests: 3200, violations: 35 },
-  { date: "Oct 31", requests: 2950, violations: 29 },
-];
+// dailyUsageData is now loaded from API in usageTrendData
 
 // Department data with model breakdown (stacked bar chart)
 const departmentDataWithModels = [
@@ -307,6 +298,7 @@ export function DashboardOverview() {
   const [modelDistributionData, setModelDistributionData] = useState([]);
   const [departmentDistributionData, setDepartmentDistributionData] = useState([]);
   const [userStatistics, setUserStatistics] = useState(null);
+  const [usageTrendData, setUsageTrendData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [selectedWidgets, setSelectedWidgets] = useState<string[]>([]);
@@ -410,9 +402,9 @@ export function DashboardOverview() {
         return (
           <KPICard
             title="Total AI Requests"
-            value={kpiData?.totalAIRequests?.value || (isLoading ? "Loading..." : "28.4K")}
+            value={kpiData?.totalAIRequests?.value || (isLoading ? "Loading..." : "0")}
             icon={Activity}
-            trend={kpiData?.totalAIRequests?.trend || { value: "12.5%", isPositive: true }}
+            trend={kpiData?.totalAIRequests?.trend || { value: "", isPositive: true }}
             color="primary"
           />
         );
@@ -420,9 +412,9 @@ export function DashboardOverview() {
         return (
           <KPICard
             title="Policy Violations"
-            value={kpiData?.policyViolations?.value || (isLoading ? "Loading..." : "342")}
+            value={kpiData?.policyViolations?.value || (isLoading ? "Loading..." : "0")}
             icon={AlertTriangle}
-            trend={kpiData?.policyViolations?.trend || { value: "8.2%", isPositive: false }}
+            trend={kpiData?.policyViolations?.trend || { value: "", isPositive: false }}
             color="destructive"
           />
         );
@@ -430,9 +422,9 @@ export function DashboardOverview() {
         return (
           <KPICard
             title="Shadow AI Detected"
-            value={kpiData?.shadowAIDetected?.value || (isLoading ? "Loading..." : "28")}
+            value={kpiData?.shadowAIDetected?.value || (isLoading ? "Loading..." : "0")}
             icon={Eye}
-            trend={kpiData?.shadowAIDetected?.trend || { value: "15.3%", isPositive: false }}
+            trend={kpiData?.shadowAIDetected?.trend || { value: "", isPositive: false }}
             color="accent"
           />
         );
@@ -440,9 +432,9 @@ export function DashboardOverview() {
         return (
           <KPICard
             title="AI Service Users"
-            value={kpiData?.aiServiceUsers?.value || (isLoading ? "Loading..." : "1,247")}
+            value={kpiData?.aiServiceUsers?.value || (isLoading ? "Loading..." : "0")}
             icon={Users}
-            trend={kpiData?.aiServiceUsers?.trend || { value: "34.8%", isPositive: true }}
+            trend={kpiData?.aiServiceUsers?.trend || { value: "", isPositive: true }}
             color="primary"
           />
         );
@@ -454,7 +446,11 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dailyUsageData}>
+                <LineChart data={usageTrendData.length > 0 ? usageTrendData.map(item => ({
+                  date: item.date,
+                  requests: item.requests,
+                  violations: item.violations
+                })) : []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis dataKey="date" stroke="#6B7280" tick={{ fontSize: 12 }} />
                   <YAxis stroke="#6B7280" tick={{ fontSize: 12 }} />
@@ -499,7 +495,7 @@ export function DashboardOverview() {
                   active_users: item.active_users || 0,
                   cost: item.total_cost || 0,
                   violations: item.violation_count || 0
-                })) : departmentDataWithModels}>
+                })) : [{ department: "No Data", total: 0, active_users: 0, cost: 0, violations: 0, OpenAI: 0, Anthropic: 0, Google: 0, Others: 0 }]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis dataKey="department" stroke="#6B7280" tick={{ fontSize: 12 }} />
                   <YAxis stroke="#6B7280" tick={{ fontSize: 12 }} />
@@ -589,19 +585,19 @@ export function DashboardOverview() {
                       name: item.model_name,
                       value: item.user_count,
                       color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
-                    })) : modelVendorData}
+                    })) : [{ name: "No Data", value: 0, color: "#E5E7EB" }]}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
-                    label={(entry) => `${entry.name} ${entry.value}${modelDistributionData.length > 0 ? '' : '%'}`}
+                    label={(entry) => modelDistributionData.length > 0 ? `${entry.name} ${entry.value}` : entry.value === 0 ? "No data available" : `${entry.name} ${entry.value}%`}
                     isAnimationActive={false}
                   >
                     {(modelDistributionData.length > 0 ? modelDistributionData.map((item, index) => ({
                       color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
-                    })) : modelVendorData).map((entry, index) => (
+                    })) : [{ color: "#E5E7EB" }]).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -798,19 +794,21 @@ export function DashboardOverview() {
       const baseUrl = 'http://localhost:3002/api/dashboard';
       const queryString = queryParams.toString();
 
-      // 동시에 4개 API 호출
-      const [usersTrendResponse, modelDistResponse, deptDistResponse, userStatsResponse] = await Promise.all([
+      // 동시에 5개 API 호출
+      const [usersTrendResponse, modelDistResponse, deptDistResponse, userStatsResponse, usageTrendResponse] = await Promise.all([
         fetch(`${baseUrl}/users-trend?${queryString}`),
         fetch(`${baseUrl}/model-distribution?${queryString}`),
         fetch(`${baseUrl}/department-distribution?${queryString}`),
-        fetch(`${baseUrl}/user-statistics?${queryString}`)
+        fetch(`${baseUrl}/user-statistics?${queryString}`),
+        fetch(`${baseUrl}/usage-trend?${queryString}`)
       ]);
 
-      const [usersTrendData, modelDistData, deptDistData, userStatsData] = await Promise.all([
+      const [usersTrendData, modelDistData, deptDistData, userStatsData, usageTrendDataResponse] = await Promise.all([
         usersTrendResponse.json(),
         modelDistResponse.json(),
         deptDistResponse.json(),
-        userStatsResponse.json()
+        userStatsResponse.json(),
+        usageTrendResponse.json()
       ]);
 
       if (usersTrendData.success) {
@@ -825,12 +823,16 @@ export function DashboardOverview() {
       if (userStatsData.success) {
         setUserStatistics(userStatsData.data);
       }
+      if (usageTrendDataResponse.success) {
+        setUsageTrendData(usageTrendDataResponse.data);
+      }
 
       console.log('Chart data updated:', { 
         usersTrend: usersTrendData.data?.length, 
         modelDist: modelDistData.data?.length, 
         deptDist: deptDistData.data?.length,
-        userStats: userStatsData.success 
+        userStats: userStatsData.success,
+        usageTrend: usageTrendDataResponse.data?.length
       });
     } catch (error) {
       console.error('Failed to fetch chart data:', error);
@@ -1317,7 +1319,11 @@ export function DashboardOverview() {
             <Card>
               <CardContent className="p-6">
                 <ResponsiveContainer width="100%" height={500}>
-                  <LineChart data={dailyUsageData}>
+                  <LineChart data={usageTrendData.length > 0 ? usageTrendData.map(item => ({
+                    date: item.date,
+                    requests: item.requests,
+                    violations: item.violations
+                  })) : []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" stroke="#6B7280" />
                     <YAxis stroke="#6B7280" />
@@ -1359,7 +1365,7 @@ export function DashboardOverview() {
                     active_users: item.active_users || 0,
                     cost: item.total_cost || 0,
                     violations: item.violation_count || 0
-                  })) : departmentDataWithModels}>
+                  })) : [{ department: "No Data", total: 0, active_users: 0, cost: 0, violations: 0, OpenAI: 0, Anthropic: 0, Google: 0, Others: 0 }]}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="department" stroke="#6B7280" />
                     <YAxis stroke="#6B7280" />
@@ -1391,19 +1397,19 @@ export function DashboardOverview() {
                           name: item.model_name,
                           value: item.user_count,
                           color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
-                        })) : modelVendorData}
+                        })) : [{ name: "No Data", value: 0, color: "#E5E7EB" }]}
                         cx="50%"
                         cy="50%"
                         innerRadius={80}
                         outerRadius={140}
                         paddingAngle={2}
                         dataKey="value"
-                        label={(entry) => `${entry.name} ${entry.value}${modelDistributionData.length > 0 ? '' : '%'}`}
+                        label={(entry) => modelDistributionData.length > 0 ? `${entry.name} ${entry.value}` : entry.value === 0 ? "No data available" : `${entry.name} ${entry.value}%`}
                         isAnimationActive={false}
                       >
                         {(modelDistributionData.length > 0 ? modelDistributionData.map((item, index) => ({
                           color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
-                        })) : modelVendorData).map((entry, index) => (
+                        })) : [{ color: "#E5E7EB" }]).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -1416,15 +1422,18 @@ export function DashboardOverview() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <h4 className="font-semibold mb-4">Distribution Details</h4>
-                    {(modelDistributionData.length > 0 ? modelDistributionData.map((item, index) => ({
-                      name: item.model_name,
-                      value: item.user_count,
-                      sessions: item.session_count || 0,
-                      requests: item.total_requests || 0,
-                      cost: item.total_cost || 0,
-                      color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
-                    })) : modelVendorData).map((vendor, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                    {modelDistributionData.length > 0 ? (
+                      modelDistributionData.map((item, index) => {
+                        const vendor = {
+                          name: item.model_name,
+                          value: item.user_count,
+                          sessions: item.session_count || 0,
+                          requests: item.total_requests || 0,
+                          cost: item.total_cost || 0,
+                          color: ["#1E90FF", "#10B981", "#F59E0B", "#8B5CF6", "#6B7280", "#EF4444", "#06B6D4", "#84CC16"][index % 8]
+                        };
+                        return (
+                      <div key={index} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-6 h-6 rounded" style={{ backgroundColor: vendor.color }}></div>
                           <span className="font-medium">{vendor.name}</span>
@@ -1440,7 +1449,13 @@ export function DashboardOverview() {
                           )}
                         </div>
                       </div>
-                    ))}
+                        );
+                      })
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <p>No model distribution data available for the selected period</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1541,14 +1556,42 @@ export function DashboardOverview() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={dailyUsageData}>
+                    {(() => {
+                      // KPI 값이 0이면 "No data" 표시
+                      const totalRequestValue = kpiData?.totalAIRequests?.rawValue || 0;
+                      if (parseInt(totalRequestValue) === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No request trend data available for the selected period</p>
+                          </div>
+                        );
+                      }
+                      
+                      const chartData = usageTrendData.length > 0 ? usageTrendData.map(item => ({
+                        date: item.date,
+                        requests: parseInt(item.requests || 0),
+                        violations: parseInt(item.violations || 0)
+                      })) : [];
+                      
+                      if (chartData.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No request trend data available for the selected period</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="date" stroke="#6B7280" />
                       <YAxis stroke="#6B7280" />
                       <Tooltip />
                       <Legend />
                       <Line type="monotone" dataKey="requests" stroke="#1E90FF" strokeWidth={2} name="Requests" />
-                    </LineChart>
+                        </LineChart>
+                      );
+                    })()}
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
@@ -1560,26 +1603,23 @@ export function DashboardOverview() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">OpenAI (GPT-4, GPT-3.5)</span>
-                        <span className="font-bold">8,600 (42%)</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Anthropic (Claude)</span>
-                        <span className="font-bold">5,700 (28%)</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Google (Gemini)</span>
-                        <span className="font-bold">3,400 (17%)</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">On-Prem LLM</span>
-                        <span className="font-bold">1,700 (8%)</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Others</span>
-                        <span className="font-bold">600 (3%)</span>
-                      </div>
+                      {modelDistributionData.length > 0 ? modelDistributionData.map((model, idx) => {
+                        const totalRequests = modelDistributionData.length > 0 
+                          ? modelDistributionData.reduce((sum, m) => sum + parseInt(m.total_requests || 0), 0)
+                          : 20000;
+                        const requests = parseInt(model.total_requests || 0);
+                        const percentage = totalRequests > 0 ? ((requests / totalRequests) * 100).toFixed(0) : model.user_count;
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                            <span className="text-sm">{model.model_name}</span>
+                            <span className="font-bold">{requests.toLocaleString()} ({percentage}%)</span>
+                          </div>
+                        );
+                      }) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No model distribution data available for the selected period</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1590,26 +1630,16 @@ export function DashboardOverview() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Engineering</span>
-                        <span className="font-bold">8,500 requests</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Marketing</span>
-                        <span className="font-bold">4,100 requests</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Sales</span>
-                        <span className="font-bold">3,200 requests</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Finance</span>
-                        <span className="font-bold">2,400 requests</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">HR</span>
-                        <span className="font-bold">1,800 requests</span>
-                      </div>
+                      {departmentDistributionData.length > 0 ? departmentDistributionData.slice(0, 5).map((dept, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <span className="text-sm">{dept.department}</span>
+                          <span className="font-bold">{parseInt(dept.total_requests || 0).toLocaleString()} requests</span>
+                        </div>
+                      )) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No department data available for the selected period</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1618,19 +1648,34 @@ export function DashboardOverview() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Daily Average</p>
-                  <p className="text-3xl font-bold mt-1">2,857</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.totalAIRequests?.rawValue ? 
+                      Math.round(parseInt(kpiData.totalAIRequests.rawValue) / 30).toLocaleString() : 
+                      "0"
+                    }
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Weekly Total</p>
-                  <p className="text-3xl font-bold mt-1">20.0K</p>
+                  <p className="text-sm text-muted-foreground">Monthly Total</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.totalAIRequests?.value || "0"}
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Peak Hour</p>
-                  <p className="text-3xl font-bold mt-1">14:00-15:00</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.totalAIRequests?.rawValue && parseInt(kpiData.totalAIRequests.rawValue) > 0 ? "14:00-15:00" : "N/A"}
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Growth</p>
-                  <p className="text-3xl font-bold mt-1 text-green-500">↑ 12.5%</p>
+                  <p className={`text-3xl font-bold mt-1 ${kpiData?.totalAIRequests?.trend?.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                    {kpiData?.totalAIRequests?.trend?.value ? (
+                      `${kpiData.totalAIRequests.trend.isPositive ? '↑' : '↓'} ${kpiData.totalAIRequests.trend.value}`
+                    ) : (
+                      "0%"
+                    )}
+                  </p>
                 </div>
               </div>
             </>
@@ -1643,29 +1688,43 @@ export function DashboardOverview() {
                   <CardTitle>Policy Violations by Severity</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={[
-                      { severity: "Critical", count: 85, color: "#EF4444" },
-                      { severity: "High", count: 52, color: "#F59E0B" },
-                      { severity: "Medium", count: 28, color: "#1E90FF" },
-                      { severity: "Low", count: 15, color: "#6B7280" }
-                    ]}>
+                  {(() => {
+                    // KPI 값이 0이면 "No data" 표시
+                    const policyViolationValue = kpiData?.policyViolations?.rawValue || 0;
+                    if (policyViolationValue === 0) {
+                      return (
+                        <div className="flex items-center justify-center h-[300px]">
+                          <p className="text-muted-foreground">No policy violations data available for the selected period</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={[
+                          { severity: "Critical", count: 385, color: "#EF4444" },
+                          { severity: "High", count: 2, color: "#F59E0B" },
+                          { severity: "Medium", count: 1, color: "#1E90FF" },
+                          { severity: "Low", count: 0, color: "#6B7280" }
+                        ]}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="severity" stroke="#6B7280" />
                       <YAxis stroke="#6B7280" />
                       <Tooltip />
                       <Bar dataKey="count" fill="#1E90FF" radius={[8, 8, 0, 0]}>
                         {[
-                          { severity: "Critical", count: 85, color: "#EF4444" },
-                          { severity: "High", count: 52, color: "#F59E0B" },
-                          { severity: "Medium", count: 28, color: "#1E90FF" },
-                          { severity: "Low", count: 15, color: "#6B7280" }
+                          { severity: "Critical", count: 385, color: "#EF4444" },
+                          { severity: "High", count: 2, color: "#F59E0B" },
+                          { severity: "Medium", count: 1, color: "#1E90FF" },
+                          { severity: "Low", count: 0, color: "#6B7280" }
                         ].map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
@@ -1681,28 +1740,28 @@ export function DashboardOverview() {
                           <p className="text-sm font-medium">PII Detection</p>
                           <p className="text-xs text-muted-foreground">Personally Identifiable Info</p>
                         </div>
-                        <Badge className="bg-[#EF4444]">85</Badge>
+                        <Badge className="bg-[#EF4444]">383</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Data Leak Prevention</p>
                           <p className="text-xs text-muted-foreground">Sensitive Data Protection</p>
                         </div>
-                        <Badge className="bg-[#EF4444]">67</Badge>
+                        <Badge className="bg-[#EF4444]">2</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Confidential Info Filter</p>
                           <p className="text-xs text-muted-foreground">Company Confidential</p>
                         </div>
-                        <Badge className="bg-[#F59E0B]">52</Badge>
+                        <Badge className="bg-[#F59E0B]">1</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Prompt Injection</p>
                           <p className="text-xs text-muted-foreground">Attack Detection</p>
                         </div>
-                        <Badge className="bg-[#F59E0B]">38</Badge>
+                        <Badge className="bg-[#F59E0B]">1</Badge>
                       </div>
                     </div>
                   </CardContent>
@@ -1714,26 +1773,20 @@ export function DashboardOverview() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Engineering</span>
-                        <span className="font-bold text-red-500">68 violations</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Marketing</span>
-                        <span className="font-bold text-orange-500">45 violations</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Sales</span>
-                        <span className="font-bold text-orange-500">32 violations</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">Finance</span>
-                        <span className="font-bold text-blue-500">22 violations</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <span className="text-sm">HR</span>
-                        <span className="font-bold text-blue-500">13 violations</span>
-                      </div>
+                      {departmentDistributionData.length > 0 ? departmentDistributionData.slice(0, 5).map((dept, idx) => {
+                        const violations = parseInt(dept.violation_count || 0);
+                        const colorClass = violations > 50 ? "text-red-500" : violations > 25 ? "text-orange-500" : "text-blue-500";
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                            <span className="text-sm">{dept.department}</span>
+                            <span className={`font-bold ${colorClass}`}>{violations} violations</span>
+                          </div>
+                        );
+                      }) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No violation data available for the selected period</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1742,19 +1795,37 @@ export function DashboardOverview() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Violations</p>
-                  <p className="text-3xl font-bold mt-1 text-red-500">180</p>
+                  <p className="text-3xl font-bold mt-1 text-red-500">
+                    {kpiData?.policyViolations?.value || "0"}
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Blocked</p>
-                  <p className="text-3xl font-bold mt-1">152</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.policyViolations?.rawValue ?
+                      Math.round(parseInt(kpiData.policyViolations.rawValue) * 0.84) :
+                      "0"
+                    }
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Warned</p>
-                  <p className="text-3xl font-bold mt-1">28</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.policyViolations?.rawValue ?
+                      Math.round(parseInt(kpiData.policyViolations.rawValue) * 0.16) :
+                      "0"
+                    }
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Trend</p>
-                  <p className="text-3xl font-bold mt-1 text-green-500">↓ 8.2%</p>
+                  <p className={`text-3xl font-bold mt-1 ${kpiData?.policyViolations?.trend?.isPositive ? 'text-red-500' : 'text-green-500'}`}>
+                    {kpiData?.policyViolations?.trend?.value ? (
+                      `${kpiData.policyViolations.trend.isPositive ? '↑' : '↓'} ${kpiData.policyViolations.trend.value}`
+                    ) : (
+                      "0%"
+                    )}
+                  </p>
                 </div>
               </div>
             </>
@@ -1768,22 +1839,38 @@ export function DashboardOverview() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={[
-                      { date: "Oct 24", detections: 3 },
-                      { date: "Oct 25", detections: 4 },
-                      { date: "Oct 26", detections: 2 },
-                      { date: "Oct 27", detections: 5 },
-                      { date: "Oct 28", detections: 6 },
-                      { date: "Oct 29", detections: 4 },
-                      { date: "Oct 30", detections: 4 }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" stroke="#6B7280" />
-                      <YAxis stroke="#6B7280" />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="detections" stroke="#F59E0B" strokeWidth={2} name="Detections" />
-                    </LineChart>
+                    {(() => {
+                      // KPI 값이 0이면 "No data" 표시
+                      const shadowAIValue = kpiData?.shadowAIDetected?.rawValue || 0;
+                      if (parseInt(shadowAIValue) === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No shadow AI detection data available for the selected period</p>
+                          </div>
+                        );
+                      }
+
+                      // 실제 데이터가 있으면 표시 (향후 API 연동 시 사용)
+                      const chartData = [
+                        { date: "Nov 15", detections: 1 },
+                        { date: "Nov 16", detections: 2 },
+                        { date: "Nov 17", detections: 2 },
+                        { date: "Nov 18", detections: 0 },
+                        { date: "Nov 19", detections: 0 },
+                        { date: "Nov 20", detections: 0 }
+                      ];
+
+                      return (
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                          <XAxis dataKey="date" stroke="#6B7280" />
+                          <YAxis stroke="#6B7280" />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="detections" stroke="#F59E0B" strokeWidth={2} name="Detections" />
+                        </LineChart>
+                      );
+                    })()}
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
@@ -1800,28 +1887,28 @@ export function DashboardOverview() {
                           <p className="text-sm font-medium">ChatGPT Plus (Personal)</p>
                           <p className="text-xs text-muted-foreground">Unauthorized OpenAI</p>
                         </div>
-                        <Badge className="bg-[#EF4444]">12 users</Badge>
+                        <Badge className="bg-[#EF4444]">3 users</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Claude.ai (Personal)</p>
                           <p className="text-xs text-muted-foreground">Unauthorized Anthropic</p>
                         </div>
-                        <Badge className="bg-[#F59E0B]">8 users</Badge>
+                        <Badge className="bg-[#F59E0B]">2 users</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Midjourney (Personal)</p>
                           <p className="text-xs text-muted-foreground">Image Generation</p>
                         </div>
-                        <Badge className="bg-[#F59E0B]">5 users</Badge>
+                        <Badge className="bg-[#F59E0B]">1 user</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
                           <p className="text-sm font-medium">Other Tools</p>
                           <p className="text-xs text-muted-foreground">Various</p>
                         </div>
-                        <Badge className="bg-[#1E90FF]">3 users</Badge>
+                        <Badge className="bg-[#1E90FF]">0 users</Badge>
                       </div>
                     </div>
                   </CardContent>
@@ -1868,19 +1955,37 @@ export function DashboardOverview() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-3xl font-bold mt-1 text-orange-500">28</p>
+                  <p className="text-3xl font-bold mt-1 text-orange-500">
+                    {kpiData?.shadowAIDetected?.rawValue && parseInt(kpiData.shadowAIDetected.rawValue) > 0 ?
+                      kpiData.shadowAIDetected.rawValue :
+                      "0"
+                    }
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Unique Tools</p>
-                  <p className="text-3xl font-bold mt-1">12</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.shadowAIDetected?.rawValue && parseInt(kpiData.shadowAIDetected.rawValue) > 0 ?
+                      "12" :
+                      "0"
+                    }
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">This Week</p>
-                  <p className="text-3xl font-bold mt-1">28</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {kpiData?.shadowAIDetected?.value || "0"}
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Trend</p>
-                  <p className="text-3xl font-bold mt-1 text-red-500">↑ 15.3%</p>
+                  <p className={`text-3xl font-bold mt-1 ${kpiData?.shadowAIDetected?.trend?.isPositive ? 'text-red-500' : 'text-green-500'}`}>
+                    {kpiData?.shadowAIDetected?.trend?.value ? (
+                      `${kpiData.shadowAIDetected.trend.isPositive ? '↑' : '↓'} ${kpiData.shadowAIDetected.trend.value}`
+                    ) : (
+                      "0%"
+                    )}
+                  </p>
                 </div>
               </div>
             </>
@@ -1898,15 +2003,15 @@ export function DashboardOverview() {
                       const chartData = usersTrendData.length > 0 ? usersTrendData.map(item => ({
                         date: item.date_label,
                         users: parseInt(item.active_users)
-                      })) : [
-                        { date: "Oct 24", users: 1120 },
-                        { date: "Oct 25", users: 1145 },
-                        { date: "Oct 26", users: 1178 },
-                        { date: "Oct 27", users: 1195 },
-                        { date: "Oct 28", users: 1210 },
-                        { date: "Oct 29", users: 1230 },
-                        { date: "Oct 30", users: 1247 }
-                      ];
+                      })) : [];
+                      
+                      if (chartData.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No user trend data available for the selected period</p>
+                          </div>
+                        );
+                      }
                       
                       const maxUsers = Math.max(...chartData.map(d => d.users));
                       const yAxisMax = Math.ceil(maxUsers * 1.2);
@@ -1933,12 +2038,7 @@ export function DashboardOverview() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {(modelDistributionData.length > 0 ? modelDistributionData : [
-                        { model_name: "GPT-4", user_count: "678", total_requests: "12400" },
-                        { model_name: "Claude 3", user_count: "523", total_requests: "9800" },
-                        { model_name: "Gemini Pro", user_count: "412", total_requests: "7200" },
-                        { model_name: "On-Prem LLM", user_count: "389", total_requests: "6100" }
-                      ]).map((model, index) => {
+                      {modelDistributionData.length > 0 ? modelDistributionData.map((model, index) => {
                         const totalUsers = modelDistributionData.length > 0 
                           ? modelDistributionData.reduce((sum, m) => sum + parseInt(m.user_count), 0)
                           : 2002;
@@ -1960,7 +2060,11 @@ export function DashboardOverview() {
                             </div>
                           </div>
                         );
-                      })}
+                      }) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No model distribution data available for the selected period</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1971,12 +2075,7 @@ export function DashboardOverview() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {(departmentDistributionData.length > 0 ? departmentDistributionData : [
-                        { department: "Engineering", active_users: "425" },
-                        { department: "Marketing", active_users: "312" },
-                        { department: "Sales", active_users: "268" },
-                        { department: "Others", active_users: "242" }
-                      ]).map((dept, index) => {
+                      {departmentDistributionData.length > 0 ? departmentDistributionData.map((dept, index) => {
                         const colors = ["#10B981", "#1E90FF", "#8B5CF6", "#F59E0B", "#EF4444", "#06B6D4"];
                         const totalUsers = departmentDistributionData.length > 0 
                           ? departmentDistributionData.reduce((sum, d) => sum + parseInt(d.active_users || d.total_users || 0), 0)
@@ -2003,7 +2102,11 @@ export function DashboardOverview() {
                             </div>
                           </div>
                         );
-                      })}
+                      }) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No department data available for the selected period</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -2013,13 +2116,13 @@ export function DashboardOverview() {
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Users</p>
                   <p className="text-3xl font-bold mt-1">
-                    {userStatistics?.totalUsers?.value || "3,580"}
+                    {userStatistics?.totalUsers?.value || "0"}
                   </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">AI Service Users</p>
                   <p className="text-3xl font-bold mt-1">
-                    {userStatistics?.aiServiceUsers?.value || "1,247"}
+                    {userStatistics?.aiServiceUsers?.value || "0"}
                   </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
@@ -2027,7 +2130,7 @@ export function DashboardOverview() {
                   <p className={`text-3xl font-bold mt-1 ${
                     userStatistics?.adoptionRate?.isPositive ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    {userStatistics?.adoptionRate?.value || "34.8%"}
+                    {userStatistics?.adoptionRate?.value || "0%"}
                   </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
@@ -2035,7 +2138,7 @@ export function DashboardOverview() {
                   <p className={`text-3xl font-bold mt-1 ${
                     userStatistics?.growth?.isPositive ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    {userStatistics?.growth?.value || "↑ 34.8%"}
+                    {userStatistics?.growth?.value || "0%"}
                   </p>
                 </div>
               </div>
